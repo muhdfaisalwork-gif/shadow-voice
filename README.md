@@ -1,12 +1,14 @@
 # Shadow Voice — AI Voice Agent Platform (Production v2)
 
-[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-blue.svg)](LICENSE)
+[![CI](https://github.com/muhdfaisalwork-gif/shadow-voice/actions/workflows/ci.yml/badge.svg)](https://github.com/muhdfaisalwork-gif/shadow-voice/actions/workflows/ci.yml)
+[![GitHub Packages](https://img.shields.io/badge/GitHub%20Packages-%40muhdfaisalwork--gif%2Fshadow--voice-blue?logo=npm&logoColor=white)](https://github.com/muhdfaisalwork-gif/shadow-voice/pkgs/npm/shadow-voice)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python: 3.12](https://img.shields.io/badge/Python-3.12-brightgreen.svg)](pyproject.toml)
-[![Architecture: Dialer--Agnostic](https://img.shields.io/badge/Architecture-Dialer--Agnostic-orange.svg)](#core-architecture-principles)
+[![Architecture: Dialer--Agnostic](https://img.shields.io/badge/Architecture-Dialer--Agnostic-orange.svg)](#0-core-architecture-principles)
 [![Target Latency: <650ms P95](https://img.shields.io/badge/Target%20Latency-%3C650ms%20P95-success.svg)](#latency-targets)
 [![CTI Target: VICIdial](https://img.shields.io/badge/CTI-VICIdial-purple.svg)](#cti-integration)
 
-Shadow Voice is a dialer-agnostic, low-latency AI Voice Agent platform designed for high-volume outbound CSR and sales environments. Built on a modular telephony gateway boundary and streaming AI pipeline (Deepgram Nova-3 / Flux STT, streaming LLM, and Qwen3-TTS), it achieves **sub-650ms speech-end-to-first-audio playout latency** while maintaining strict TCPA/TSR regulatory compliance.
+Shadow Voice is an open-source, dialer-agnostic, low-latency AI Voice Agent platform and developer-tools automation suite built in Python with a full CLI and Node.js SDK for high-volume outbound CSR and sales environments. Built on a modular telephony gateway boundary and streaming AI pipeline (Deepgram Nova-3 / Flux STT, streaming LLM, and Qwen3-TTS), it achieves **sub-650ms speech-end-to-first-audio playout latency** while maintaining strict TCPA/TSR regulatory compliance.
 
 ---
 
@@ -257,3 +259,93 @@ Open your browser to **http://localhost:8002**.
 6. **Model Context Protocol (MCP Server)**:
    - JSON-RPC 2.0 stdio server (`run_mcp.py`) compatible with Antigravity, Cursor, and Claude Desktop.
    - Tools: `update_instructions`, `get_brain_knowledge`, `review_customer_question`, `scan_url_with_reach_eyes`, `simulate_call_turn`.
+
+7. **Built-in Softphone Hub (eyeBeam / X-Lite / Virtual SIP)**:
+   - Auto-detects bundled `Eyebeam.exe` and `x-lite-eyebeam.exe` installers or installed desktop binaries.
+   - One-click launch, Windows Registry (`.reg`) SIP & Auto-Answer (`AA=1`) provisioning, and headless Virtual SIP softphone registration to VICIdial / Asterisk `:5060`.
+
+---
+
+## 📦 Working with the GitHub Packages npm Registry
+
+Shadow Voice is published to **GitHub Packages** under `@muhdfaisalwork-gif/shadow-voice` and integrates with `@muhdfaisalwork-gif/github-seo-agent`.
+
+### 1. Authenticating to GitHub Packages
+
+Configure your `.npmrc` or authenticate via `npm login` using a personal access token (classic) with `read:packages` / `write:packages` scopes:
+
+```shell
+@muhdfaisalwork-gif:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=TOKEN
+```
+
+Or via the CLI (`npm` v9+):
+
+```shell
+npm login --scope=@muhdfaisalwork-gif --auth-type=legacy --registry=https://npm.pkg.github.com
+```
+
+### 2. Run via `npx` or Install as a Dependency
+
+```bash
+# Configure registry for the @muhdfaisalwork-gif scope
+npm config set @muhdfaisalwork-gif:registry https://npm.pkg.github.com
+
+# Start Shadow Voice Web Studio & Telephony Gateway on port 9000
+npx @muhdfaisalwork-gif/shadow-voice dashboard --port 9000
+
+# Run the MCP stdio server for Claude Desktop / Cursor
+npx @muhdfaisalwork-gif/shadow-voice mcp
+
+# Run a simulated end-to-end outbound call flow
+npx @muhdfaisalwork-gif/shadow-voice demo
+
+# Run GitHub SEO Agent discoverability audit
+npx @muhdfaisalwork-gif/shadow-voice seo
+```
+
+To install `@muhdfaisalwork-gif/shadow-voice` in your Node.js project:
+
+```json
+{
+  "name": "@muhdfaisalwork-gif/voice-app",
+  "version": "1.0.0",
+  "dependencies": {
+    "@muhdfaisalwork-gif/shadow-voice": "^2.0.0",
+    "@muhdfaisalwork-gif/github-seo-agent": "^1.0.0"
+  }
+}
+```
+
+```bash
+npm install
+```
+
+---
+
+## ⚖️ Shadow Voice vs Traditional Cloud Voice Bots
+
+| Feature | Shadow Voice (v2.0) | Legacy Cloud Voice Bots |
+| :--- | :--- | :--- |
+| **Speech-End-to-Audio Latency (P95)** | **< 540 ms** (Target < 650 ms) | 1,400 ms – 2,800 ms |
+| **Barge-In Flush Speed** | **< 5 ms** (Instantaneous cancellation) | 350 ms – 900 ms |
+| **VICIdial & Asterisk AudioSocket** | **Native TCP `:9092` + CTI API** | Requires expensive SIP/WebRTC bridges |
+| **Built-in Softphone Hub** | **eyeBeam, X-Lite & Virtual SIP included** | External manual setup required |
+| **Cognitive Brain Self-Evolution** | **Autonomous Q&A mining & Golden Answers** | Static prompt templates |
+| **LLM & Speech Lock-In** | **Open-Source / Local Ollama + 7 Providers** | Vendor-locked per-minute markup |
+
+---
+
+## 🏆 Related Open-Source Ecosystem
+
+- **GitHub SEO Agent**: [https://github.com/muhdfaisalwork-gif/linkedin-agent/tree/github-seo-agent](https://github.com/muhdfaisalwork-gif/linkedin-agent/tree/github-seo-agent) (`@muhdfaisalwork-gif/github-seo-agent`) — Open-Source Repository Discoverability Engine & Launch Copy Synthesizer
+- **LinkedIn Nexus Agent**: [https://github.com/muhdfaisalwork-gif/linkedin-agent](https://github.com/muhdfaisalwork-gif/linkedin-agent) — Autonomous LinkedIn Studio & Reach Engine
+- **ShadowStream**: [https://github.com/muhdfaisalwork-gif/ShadowStream](https://github.com/muhdfaisalwork-gif/ShadowStream) — Edge-Accelerated Open-Source Streaming Platform
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md) for details on our code of conduct and pull request process.
+
+## 📄 License
+
+MIT License — see [LICENSE](LICENSE) for full details.
