@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shadow Voice — Autonomous Voice Studio & Cognitive Brain</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            950: '#070a13',
+                            900: '#0a0f1d',
+                            800: '#111827',
+                            750: '#161f33',
+                            700: '#1f2937',
+                            600: '#374151'
+                        },
+                        brand: {
+                            500: '#6366f1', // Indigo
+                            600: '#4f46e5',
+                            400: '#818cf8',
+                            cyan: '#06b6d4',
+                            emerald: '#10b981'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0a0f1d; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #374151; }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 0.3; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .pulse-ring { animation: pulse-ring 2s infinite ease-in-out; }
+    </style>
+</head>
+<body class="bg-dark-950 text-slate-100 font-sans antialiased min-h-screen flex flex-col custom-scrollbar">
+
+    <!-- Top Navigation Header -->
+    <header class="border-b border-dark-700/80 bg-dark-900/90 backdrop-blur sticky top-0 z-50 px-6 py-3.5 flex items-center justify-between shadow-lg">
+        <div class="flex items-center space-x-3.5">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-indigo-500 to-brand-cyan flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                <i data-lucide="mic" class="w-5 h-5 text-white"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg tracking-tight flex items-center gap-2">
+                    Shadow Voice <span class="text-xs bg-indigo-500/20 text-indigo-400 px-2.5 py-0.5 rounded-full font-mono font-medium border border-indigo-500/30">STUDIO v2</span>
+                </h1>
+                <p class="text-xs text-slate-400">Dialer-Agnostic AI Voice Agent with Evolving Cognitive Brain</p>
+            </div>
+        </div>
+
+        <!-- Global Status Badges & Controls -->
+        <div class="flex items-center space-x-3">
+            <div id="status-pill" class="flex items-center space-x-2 text-xs bg-dark-800/90 px-3 py-1.5 rounded-lg border border-dark-700">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span id="gateway-status-label" class="text-slate-300 font-medium">Gateway Active (:9000)</span>
+            </div>
+
+            <div class="hidden md:flex items-center space-x-2 text-xs bg-dark-800/90 px-3 py-1.5 rounded-lg border border-dark-700 text-slate-400">
+                <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i>
+                <span>P95 Playout: <b id="header-p95" class="text-emerald-400 font-mono">540ms</b></span>
+            </div>
+
+            <button id="btn-kill-switch" onclick="toggleKillSwitch()" class="flex items-center space-x-1.5 text-xs bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 px-3 py-1.5 rounded-lg font-medium transition">
+                <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+                <span id="kill-switch-text">Kill Switch: Ready</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main App Body: Sidebar + Content Area -->
+    <div class="flex-1 flex overflow-hidden">
+        <!-- Sidebar Navigation -->
+        <aside class="w-64 border-r border-dark-800 bg-dark-900/60 p-4 flex flex-col justify-between shrink-0">
+            <nav class="space-y-1.5" id="nav-tabs">
+                <button onclick="switchTab('tab-webphone')" data-tab="tab-webphone" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-white bg-brand-600/20 border border-brand-500/30">
+                    <i data-lucide="phone-call" class="w-4 h-4 text-brand-400"></i>
+                    <span>Live Web Phone</span>
+                </button>
+                <button onclick="switchTab('tab-instructions')" data-tab="tab-instructions" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-dark-800">
+                    <i data-lucide="sliders" class="w-4 h-4 text-slate-400"></i>
+                    <span>Instruction Studio</span>
+                </button>
+                <button onclick="switchTab('tab-voices')" data-tab="tab-voices" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-dark-800">
+                    <i data-lucide="waveform" class="w-4 h-4 text-slate-400"></i>
+                    <span>Voice Studio & Cloning</span>
+                </button>
+                <button onclick="switchTab('tab-brain')" data-tab="tab-brain" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-dark-800">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-slate-400"></i>
+                    <span>Cognitive Brain</span>
+                </button>
+                <button onclick="switchTab('tab-dialers')" data-tab="tab-dialers" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-dark-800">
+                    <i data-lucide="radio" class="w-4 h-4 text-slate-400"></i>
+                    <span>Dialers & CTI Hub</span>
+                </button>
+                <button onclick="switchTab('tab-reach')" data-tab="tab-reach" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-dark-800">
+                    <i data-lucide="eye" class="w-4 h-4 text-slate-400"></i>
+                    <span>Agent Reach Eyes</span>
+                </button>
+                <button onclick="switchTab('tab-history')" data-tab="tab-history" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-dark-800">
+                    <i data-lucide="history" class="w-4 h-4 text-slate-400"></i>
+                    <span>Call Transcripts</span>
+                </button>
+                <button onclick="switchTab('tab-analytics')" data-tab="tab-analytics" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-dark-800">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4 text-slate-400"></i>
+                    <span>Compliance & Stats</span>
+                </button>
+                <button onclick="switchTab('tab-settings')" data-tab="tab-settings" class="nav-item w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-dark-800">
+                    <i data-lucide="settings" class="w-4 h-4 text-slate-400"></i>
+                    <span>System Settings</span>
+                </button>
+            </nav>
+
+            <!-- Bottom Session Status Card -->
+            <div class="border border-dark-800 bg-dark-800/40 rounded-xl p-3 text-xs space-y-1.5">
+                <div class="text-slate-400 flex items-center justify-between">
+                    <span>Active Dialer:</span>
+                    <span id="sidebar-active-dialer" class="text-brand-400 font-semibold uppercase">VICIdial / Web</span>
+                </div>
+                <div class="text-slate-400 flex items-center justify-between">
+                    <span>Safe Harbor Drop:</span>
+                    <span class="text-emerald-400 font-semibold font-mono">1.2% (Limit 3%)</span>
+                </div>
+                <div class="text-slate-400 flex items-center justify-between">
+                    <span>Natural Opening:</span>
+                    <span class="text-emerald-400 font-semibold">100% Human</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace Tabs -->
+        <main class="flex-1 overflow-y-auto p-6 custom-scrollbar bg-dark-950/70">
+
+            <!-- ============================================================== -->
+            <!-- TAB 1: LIVE VOICE CONSOLE & BUILT-IN WEB PHONE (SOFTPHONE)      -->
+            <!-- ============================================================== -->
+            <section id="tab-webphone" class="tab-pane space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                            <i data-lucide="phone-call" class="w-5 h-5 text-brand-400"></i>
+                            Live Console & Built-in Web Phone
+                        </h2>
+                        <p class="text-xs text-slate-400">Interact directly with the voice agent using browser microphone & speakers, test dialers, and monitor sub-650ms latency.</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span id="call-state-badge" class="px-3 py-1 rounded-full text-xs font-mono font-medium bg-slate-800 text-slate-400 border border-slate-700">STANDBY</span>
+                    </div>
+                </div>
+
+                <!-- Softphone & Call Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Left: Softphone Dialpad & Live Controls (5 cols) -->
+                    <div class="lg:col-span-5 bg-dark-900 border border-dark-700/80 rounded-2xl p-5 space-y-5 shadow-xl">
+                        <!-- Active Agent Voice Profile Banner -->
+                        <div class="border border-dark-800 bg-dark-950/80 rounded-xl p-2.5 flex items-center justify-between">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                                    <i data-lucide="waveform" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <div class="text-[10px] text-slate-500 uppercase font-semibold">Active Agent Voice</div>
+                                    <div id="webphone-active-voice-badge" class="text-xs font-bold text-brand-cyan">Jordan (Sales Closer)</div>
+                                </div>
+                            </div>
+                            <button onclick="switchTab('tab-voices')" class="text-[11px] px-2 py-1 rounded bg-dark-800 hover:bg-dark-700 text-slate-300 border border-dark-700 transition">
+                                Manage Voices
+                            </button>
+                        </div>
+
+                        <!-- Number & Target -->
+                        <div class="space-y-3">
+                            <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                                <span>Target Phone Number</span>
+                                <span class="text-xs text-slate-500 font-normal">Test Dialing Line</span>
+                            </label>
+                            <div class="flex items-center space-x-2">
+                                <input type="text" id="phone-input" value="+1 (555) 019-2834" class="flex-1 bg-dark-950 border border-dark-700 rounded-xl px-4 py-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-500">
+                                <button onclick="toggleMute()" id="btn-mute" class="p-2.5 rounded-xl border border-dark-700 bg-dark-800 hover:bg-dark-700 text-slate-300 transition" title="Toggle Mute">
+                                    <i data-lucide="mic" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Waveform / Audio Canvas Display -->
+                        <div class="bg-dark-950 border border-dark-800 rounded-xl p-4 flex flex-col items-center justify-center space-y-2 h-36 relative overflow-hidden">
+                            <canvas id="waveform-canvas" width="360" height="90" class="w-full h-full"></canvas>
+                            <div id="barge-in-indicator" class="hidden absolute top-2 right-2 px-2 py-0.5 bg-rose-500/20 text-rose-400 border border-rose-500/40 rounded text-[10px] font-mono font-semibold animate-pulse">
+                                BARGE-IN DETECTED (<5ms FLUSH)
+                            </div>
+                            <p id="audio-status-label" class="text-xs text-slate-500 font-mono">Microphone ready. Start call to begin voice loop.</p>
+                        </div>
+
+                        <!-- Call Action Buttons -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <button id="btn-start-call" onclick="startWebPhoneCall()" class="flex items-center justify-center space-x-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm transition shadow-lg shadow-emerald-600/20">
+                                <i data-lucide="phone" class="w-4 h-4"></i>
+                                <span>Start Call</span>
+                            </button>
+                            <button id="btn-end-call" onclick="endWebPhoneCall('CALLBK')" disabled class="flex items-center justify-center space-x-2 py-3 px-4 rounded-xl bg-rose-600/30 border border-rose-500/30 text-rose-300 font-medium text-sm transition opacity-50 cursor-not-allowed">
+                                <i data-lucide="phone-off" class="w-4 h-4"></i>
+                                <span>End Call</span>
+                            </button>
+                        </div>
+                        <button type="button" id="btn-demo-call" onclick="runAutomatedDemoCall()" class="w-full py-2 bg-gradient-to-r from-indigo-600 to-brand-600 hover:from-indigo-500 hover:to-brand-500 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/20">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                            <span>Run 4-Turn Automated Demo Call (Watch & Listen Live)</span>
+                        </button>
+
+                        <!-- Mid-Call Transfer & Disposition Drawer -->
+                        <div class="border-t border-dark-800 pt-4 space-y-3">
+                            <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mid-Call Actions & CTI</div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="triggerTransfer('WARM')" id="btn-transfer-warm" disabled class="py-2 px-3 rounded-lg border border-dark-700 bg-dark-800 text-xs font-medium text-slate-300 hover:bg-dark-700 disabled:opacity-50">
+                                    Warm Transfer (x8300)
+                                </button>
+                                <button onclick="triggerTransfer('BLIND')" id="btn-transfer-blind" disabled class="py-2 px-3 rounded-lg border border-dark-700 bg-dark-800 text-xs font-medium text-slate-300 hover:bg-dark-700 disabled:opacity-50">
+                                    Blind Transfer
+                                </button>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <select id="select-disposition" class="flex-1 bg-dark-950 border border-dark-700 rounded-lg px-3 py-1.5 text-xs text-slate-200">
+                                    <option value="SALE">SALE — Demo Booked / Interested</option>
+                                    <option value="CALLBK" selected>CALLBK — Scheduled Call-Back</option>
+                                    <option value="XFER">XFER — Live Closer Handoff</option>
+                                    <option value="NI">NI — Not Interested</option>
+                                    <option value="DNC">DNC — Do Not Call</option>
+                                </select>
+                                <button onclick="applyDisposition()" class="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 rounded-lg text-xs font-medium text-slate-200">
+                                    Set Dispo
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Turn Latency Meter Card -->
+                        <div class="border border-dark-800 bg-dark-950/80 rounded-xl p-3.5 space-y-2">
+                            <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                                <span>Live Turn Latency Breakdown</span>
+                                <span class="text-emerald-400 font-mono" id="latency-total">0 ms</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 text-center">
+                                <div class="bg-dark-900 border border-dark-800 rounded-lg p-2">
+                                    <div class="text-[10px] text-slate-500">STT</div>
+                                    <div id="latency-stt" class="text-xs font-mono font-bold text-slate-300">0 ms</div>
+                                </div>
+                                <div class="bg-dark-900 border border-dark-800 rounded-lg p-2">
+                                    <div class="text-[10px] text-slate-500">LLM TTFT</div>
+                                    <div id="latency-llm" class="text-xs font-mono font-bold text-slate-300">0 ms</div>
+                                </div>
+                                <div class="bg-dark-900 border border-dark-800 rounded-lg p-2">
+                                    <div class="text-[10px] text-slate-500">TTS Playout</div>
+                                    <div id="latency-tts" class="text-xs font-mono font-bold text-slate-300">0 ms</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Live Conversation Transcript Stream (7 cols) -->
+                    <div class="lg:col-span-7 bg-dark-900 border border-dark-700/80 rounded-2xl p-5 flex flex-col justify-between shadow-xl min-h-[480px]">
+                        <div>
+                            <div class="flex items-center justify-between pb-3 border-b border-dark-800">
+                                <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                                    <i data-lucide="message-square" class="w-4 h-4 text-brand-cyan"></i>
+                                    Live Dialogue Stream
+                                </h3>
+                                <div class="flex items-center space-x-2 text-xs text-slate-400">
+                                    <span>Current Stage:</span>
+                                    <span id="fsm-stage-pill" class="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-full font-mono font-semibold">CONNECTION</span>
+                                </div>
+                            </div>
+
+                            <!-- Messages Container -->
+                            <div id="transcript-feed" class="py-4 space-y-3.5 max-h-[360px] overflow-y-auto custom-scrollbar">
+                                <div class="p-3 rounded-xl bg-dark-800/40 border border-dark-800 text-xs text-slate-400 flex items-center gap-2">
+                                    <i data-lucide="info" class="w-4 h-4 text-slate-500"></i>
+                                    <span>Click <b>Start Call</b> to begin. The agent will open with Section 7.1 natural human dialogue.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Caller Input Bar (Interactive Voice / Text Simulator) -->
+                        <div class="border-t border-dark-800 pt-3">
+                            <form onsubmit="sendCallerUtterance(event)" class="flex items-center space-x-2">
+                                <button type="button" onclick="toggleMicRecognition()" id="btn-voice-mic" class="p-2.5 rounded-xl border border-dark-700 bg-dark-800 hover:bg-dark-700 text-slate-300 transition shrink-0" title="Click to speak into microphone">
+                                    <i data-lucide="mic" class="w-4 h-4 text-brand-cyan"></i>
+                                </button>
+                                <input type="text" id="caller-input" placeholder="Click mic to speak, or type customer reply..." class="flex-1 bg-dark-950 border border-dark-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500">
+                                <button type="submit" class="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-sm font-medium transition flex items-center gap-1.5 shrink-0">
+                                    <span>Send</span>
+                                    <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </form>
+                            <div class="mt-2 flex items-center gap-1.5 overflow-x-auto text-[11px] text-slate-400">
+                                <span class="text-slate-500">Quick tests:</span>
+                                <button onclick="quickTestCaller('What dialer systems do you support?')" class="px-2 py-0.5 rounded bg-dark-800 hover:bg-dark-700 border border-dark-700">Dialers?</button>
+                                <button onclick="quickTestCaller('How much does it cost?')" class="px-2 py-0.5 rounded bg-dark-800 hover:bg-dark-700 border border-dark-700">Pricing?</button>
+                                <button onclick="quickTestCaller('Are you an AI robot?')" class="px-2 py-0.5 rounded bg-dark-800 hover:bg-dark-700 border border-dark-700">Bot check?</button>
+                                <button onclick="quickTestCaller('Sure, connect me with your engineer.')" class="px-2 py-0.5 rounded bg-dark-800 hover:bg-dark-700 border border-dark-700">Accept demo</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================== -->
+            <!-- TAB 2: INSTRUCTION STUDIO & PERSONA SCRIPT DIRECTIVES           -->
+            <!-- ============================================================== -->
+            <section id="tab-instructions" class="tab-pane hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                            <i data-lucide="sliders" class="w-5 h-5 text-brand-400"></i>
+                            Instruction Studio & Script Directives
+                        </h2>
+                        <p class="text-xs text-slate-400">Easily write instructions dictating what the agent should speak, how to qualify leads, and enforce natural human openings.</p>
+                    </div>
+                    <button onclick="saveInstructions()" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-sm font-medium transition flex items-center gap-1.5 shadow-lg shadow-brand-500/20">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        <span>Save Instructions</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Left: Persona & Opening Greeting (7 cols) -->
+                    <div class="lg:col-span-7 bg-dark-900 border border-dark-700/80 rounded-2xl p-5 space-y-4 shadow-xl">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs font-semibold text-slate-300 uppercase">Agent Persona Name</label>
+                                <input type="text" id="inst-agent-name" class="mt-1.5 w-full bg-dark-950 border border-dark-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+                            </div>
+                            <div>
+                                <label class="text-xs font-semibold text-slate-300 uppercase">Company Name</label>
+                                <input type="text" id="inst-company-name" class="mt-1.5 w-full bg-dark-950 border border-dark-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+                            </div>
+                        </div>
+
+                        <!-- Opening Greeting with Section 7.1 Verification -->
+                        <div class="space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs font-semibold text-slate-300 uppercase flex items-center gap-2">
+                                    <span>Opening Greeting (Section 7.1 Human Standard)</span>
+                                    <span id="opening-audit-badge" class="px-2 py-0.5 text-[10px] font-semibold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">100% NATURAL</span>
+                                </label>
+                                <span class="text-[11px] text-slate-400">Zero AI disclosures allowed</span>
+                            </div>
+                            <input type="text" id="inst-opening-greeting" oninput="auditGreetingLive()" class="w-full bg-dark-950 border border-dark-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500">
+                            <p id="opening-warning" class="hidden text-xs text-rose-400 flex items-center gap-1"></p>
+                        </div>
+
+                        <!-- Primary Instructions -->
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-semibold text-slate-300 uppercase">Primary Instructions ("What to Speak & Answer")</label>
+                            <textarea id="inst-primary" rows="6" class="w-full bg-dark-950 border border-dark-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-brand-500 font-sans custom-scrollbar" placeholder="Enter clear instructions on how the agent should speak, key talking points, and how to handle customer questions..."></textarea>
+                        </div>
+
+                        <!-- Tone & Voice -->
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-semibold text-slate-300 uppercase">Tone & Delivery Style</label>
+                            <input type="text" id="inst-tone" class="w-full bg-dark-950 border border-dark-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+                        </div>
+
+                        <!-- Active Voice Profile Selector Card -->
+                        <div class="border border-dark-800 bg-dark-950/80 rounded-xl p-3 flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
+                                    <i data-lucide="waveform" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <div class="text-[11px] font-semibold text-slate-300 uppercase">Cloned Voice Profile for Calls</div>
+                                    <div id="inst-voice-label" class="text-xs text-brand-cyan font-medium mt-0.5">Jordan (Sales Engineer) — Cartesia Sonic 195Hz</div>
+                                </div>
+                            </div>
+                            <button type="button" onclick="switchTab('tab-voices')" class="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-200 rounded-lg text-xs font-medium border border-dark-700 transition flex items-center gap-1.5">
+                                <i data-lucide="upload-cloud" class="w-3.5 h-3.5 text-brand-cyan"></i>
+                                <span>Upload / Clone Voice</span>
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs font-semibold text-slate-300 uppercase">Approved Pricing Terms</label>
+                                <input type="text" id="inst-pricing" class="mt-1.5 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-brand-500" placeholder="comma-separated">
+                            </div>
+                            <div>
+                                <label class="text-xs font-semibold text-slate-300 uppercase">Transfer Extension</label>
+                                <input type="text" id="inst-transfer-ext" class="mt-1.5 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-brand-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Simulation Chat Sandbox (5 cols) -->
+                    <div class="lg:col-span-5 bg-dark-900 border border-dark-700/80 rounded-2xl p-5 flex flex-col justify-between shadow-xl">
+                        <div>
+                            <div class="flex items-center justify-between pb-3 border-b border-dark-800">
+                                <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                                    <i data-lucide="play" class="w-4 h-4 text-emerald-400"></i>
+                                    Prompt Simulation Sandbox
+                                </h3>
+                                <button onclick="clearSimChat()" class="text-xs text-slate-400 hover:text-slate-200">Clear</button>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-2">Test how your instructions influence the agent's replies in real time without making actual phone calls.</p>
+
+                            <div id="sim-chat-box" class="mt-4 space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar">
+                                <div class="p-3 rounded-xl bg-dark-800/40 border border-dark-800 text-xs text-slate-400">
+                                    Send any test prompt or question to verify how the agent responds.
+                                </div>
+                            </div>
+                        </div>
+
+                        <form onsubmit="runSimulation(event)" class="mt-4 flex items-center space-x-2">
+                            <input type="text" id="sim-prompt-input" placeholder="Test: 'Why should I switch from my PBX?'" class="flex-1 bg-dark-950 border border-dark-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+                            <button type="submit" class="px-3.5 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-xl text-xs font-medium transition">
+                                Test
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================== -->
+            <!-- TAB: VOICE STUDIO & REFERENCE AUDIO CLONING                    -->
+            <!-- ============================================================== -->
+            <section id="tab-voices" class="tab-pane hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                            <i data-lucide="waveform" class="w-5 h-5 text-brand-cyan"></i>
+                            Voice Studio & Reference Audio Cloning
+                        </h2>
+                        <p class="text-xs text-slate-400">Give Shadow Voice reference audio (.wav / .mp3) of any human representative or closer, extract acoustic pitch & timbre, synthesize speech, and set the active agent voice.</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs text-slate-400">Active Campaign Voice:</span>
+                        <span id="active-voice-pill" class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Loading...</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Left: Upload Reference Audio & Clone Voice (6 cols) -->
+                    <div class="lg:col-span-6 bg-dark-900 border border-dark-700/80 rounded-2xl p-5 space-y-4 shadow-xl">
+                        <div class="flex items-center justify-between pb-3 border-b border-dark-800">
+                            <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                                <i data-lucide="upload-cloud" class="w-4 h-4 text-brand-cyan"></i>
+                                Upload Reference Audio (.wav / .mp3)
+                            </h3>
+                            <span class="text-[11px] text-slate-500">5s - 60s human voice recommended</span>
+                        </div>
+
+                        <!-- Dropzone / File Picker -->
+                        <div id="voice-dropzone" onclick="document.getElementById('voice-file-input').click()" class="border-2 border-dashed border-dark-700 hover:border-brand-500 bg-dark-950/60 rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition">
+                            <input type="file" id="voice-file-input" accept=".wav,.mp3,.ogg,.m4a" onchange="handleVoiceFileSelected(event)" class="hidden">
+                            <div class="w-12 h-12 rounded-full bg-brand-500/10 text-brand-cyan flex items-center justify-center mb-2">
+                                <i data-lucide="file-audio" class="w-6 h-6"></i>
+                            </div>
+                            <div id="dropzone-label" class="text-xs font-medium text-slate-300">
+                                Click or drag & drop human voice sample here
+                            </div>
+                            <div class="text-[10px] text-slate-500 mt-1">Supports WAV, MP3, OGG, M4A</div>
+                            <div id="selected-file-badge" class="hidden mt-2 px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-mono"></div>
+                        </div>
+
+                        <!-- Profile Parameters -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs font-semibold text-slate-300 uppercase">Voice Profile Name</label>
+                                <input type="text" id="voice-name-input" placeholder="e.g. Sarah (Enterprise Closer)" class="mt-1.5 w-full bg-dark-950 border border-dark-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+                            </div>
+                            <div>
+                                <label class="text-xs font-semibold text-slate-300 uppercase">Acoustic / TTS Engine</label>
+                                <select id="voice-engine-select" class="mt-1.5 w-full bg-dark-950 border border-dark-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+                                    <option value="cartesia_sonic">Cartesia Sonic (Sub-90ms Streaming)</option>
+                                    <option value="elevenlabs">ElevenLabs (Neural Voice Clone)</option>
+                                    <option value="qwen3_tts">Local Qwen3-TTS Acoustic Model</option>
+                                    <option value="custom_clone">Custom Pitch & Formant Clone (Offline)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-semibold text-slate-300 uppercase">Description / Role Tone</label>
+                            <input type="text" id="voice-desc-input" placeholder="e.g. Crisp, confident, consultative closer tone" class="mt-1.5 w-full bg-dark-950 border border-dark-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+                        </div>
+
+                        <div class="flex items-center space-x-2 pt-1">
+                            <input type="checkbox" id="voice-auto-activate" checked class="w-4 h-4 rounded border-dark-700 bg-dark-950 text-brand-600 focus:ring-0">
+                            <label for="voice-auto-activate" class="text-xs text-slate-300 select-none">Immediately set as active agent voice for phone calls</label>
+                        </div>
+
+                        <button onclick="submitVoiceUpload()" id="btn-upload-voice" class="w-full py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-sm font-medium transition flex items-center justify-center gap-2 shadow-lg shadow-brand-500/20">
+                            <i data-lucide="sparkles" class="w-4 h-4"></i>
+                            <span>Upload & Clone Voice</span>
+                        </button>
+
+                        <!-- Acoustic Extraction Feedback Card -->
+                        <div id="voice-acoustics-card" class="hidden p-3.5 rounded-xl bg-dark-950 border border-dark-800 space-y-2 text-xs">
+                            <div class="font-bold text-emerald-400 flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
+                                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                                <span>Voice Cloned Successfully</span>
+                            </div>
+                            <div class="grid grid-cols-4 gap-2 text-center text-slate-300">
+                                <div class="bg-dark-900 p-2 rounded-lg">
+                                    <div class="text-[10px] text-slate-500">Duration</div>
+                                    <div id="acoustics-duration" class="font-mono font-bold text-xs mt-0.5">--</div>
+                                </div>
+                                <div class="bg-dark-900 p-2 rounded-lg">
+                                    <div class="text-[10px] text-slate-500">Pitch (F0)</div>
+                                    <div id="acoustics-pitch" class="font-mono font-bold text-xs mt-0.5 text-brand-cyan">--</div>
+                                </div>
+                                <div class="bg-dark-900 p-2 rounded-lg">
+                                    <div class="text-[10px] text-slate-500">RMS Energy</div>
+                                    <div id="acoustics-energy" class="font-mono font-bold text-xs mt-0.5">--</div>
+                                </div>
+                                <div class="bg-dark-900 p-2 rounded-lg">
+                                    <div class="text-[10px] text-slate-500">Sample Rate</div>
+                                    <div id="acoustics-rate" class="font-mono font-bold text-xs mt-0.5">--</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Live Voice Tester & Speech Synthesizer (6 cols) -->
+                    <div class="lg:col-span-6 bg-dark-900 border border-dark-700/80 rounded-2xl p-5 space-y-4 shadow-xl flex flex-col justify-between">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between pb-3 border-b border-dark-800">
+                                <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                                    <i data-lucide="volume-2" class="w-4 h-4 text-emerald-400"></i>
+                                    Live Voice Tester & Speech Preview
+                                </h3>
+                                <span class="text-[11px] text-slate-500">Test before calling</span>
+                            </div>
+
+                            <div>
+                                <label class="text-xs font-semibold text-slate-300 uppercase">Select Voice to Test</label>
+                                <select id="tester-voice-select" onchange="onTesterVoiceChanged()" class="mt-1.5 w-full bg-dark-950 border border-dark-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+                                    <option value="">Loading voices...</option>
+                                </select>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-xs font-semibold text-slate-300 uppercase">Text to Speak</label>
+                                    <span class="text-[10px] text-slate-500">Section 7.1 Human Standard</span>
+                                </div>
+                                <textarea id="tester-text-input" rows="4" class="w-full bg-dark-950 border border-dark-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-brand-500 custom-scrollbar">Hi, this is Jordan calling from Shadow Voice — do you have a quick minute?</textarea>
+                                <div class="flex items-center gap-1.5 overflow-x-auto text-[11px] text-slate-400 pt-1">
+                                    <span class="text-slate-500">Presets:</span>
+                                    <button type="button" onclick="setTesterPreset('Hi, this is Jordan calling from Shadow Voice — do you have a quick minute?')" class="px-2 py-0.5 rounded bg-dark-800 hover:bg-dark-700 border border-dark-700">Opening Greeting</button>
+                                    <button type="button" onclick="setTesterPreset('I completely understand. Most Directors felt the same way before seeing how we cut telecom drop rates by 40%.')" class="px-2 py-0.5 rounded bg-dark-800 hover:bg-dark-700 border border-dark-700">Objection</button>
+                                    <button type="button" onclick="setTesterPreset('Yes, we integrate seamlessly with VICIdial, Asterisk, and cloud SIP trunks without complex PBX migrations.')" class="px-2 py-0.5 rounded bg-dark-800 hover:bg-dark-700 border border-dark-700">Dialers</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Audio Player Output Box -->
+                        <div class="space-y-3 pt-3 border-t border-dark-800">
+                            <div class="flex items-center justify-between">
+                                <button type="button" onclick="runVoicePreview()" id="btn-preview-voice" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-2 shadow-lg shadow-emerald-600/20">
+                                    <i data-lucide="play" class="w-4 h-4"></i>
+                                    <span>Synthesize & Listen</span>
+                                </button>
+                                <button type="button" onclick="activateSelectedTesterVoice()" id="btn-activate-tester-voice" class="px-4 py-2.5 bg-dark-800 hover:bg-dark-700 text-slate-200 border border-dark-700 rounded-xl text-xs font-medium transition flex items-center gap-1.5">
+                                    <i data-lucide="check" class="w-3.5 h-3.5 text-brand-cyan"></i>
+                                    <span>Set as Active Agent Voice</span>
+                                </button>
+                            </div>
+
+                            <div id="tester-audio-container" class="hidden p-3 rounded-xl bg-dark-950 border border-dark-800 flex items-center justify-between gap-3">
+                                <div class="flex items-center space-x-2.5 min-w-0">
+                                    <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                                        <i data-lucide="volume-2" class="w-4 h-4"></i>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div id="tester-audio-title" class="text-xs font-bold text-white truncate">Preview Output</div>
+                                        <div id="tester-audio-sub" class="text-[10px] text-slate-400 font-mono">16kHz Cloned Speech</div>
+                                    </div>
+                                </div>
+                                <audio id="tester-audio-player" controls class="h-8 max-w-[240px]"></audio>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom: Registered Voice Profiles Library -->
+                <div class="bg-dark-900 border border-dark-700/80 rounded-2xl p-5 space-y-4 shadow-xl">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                                <i data-lucide="users" class="w-4 h-4 text-brand-400"></i>
+                                Voice Profiles Library
+                            </h3>
+                            <p class="text-xs text-slate-400">All registered human voice samples and cloned personas. Switch the active voice for your dialer campaigns with one click.</p>
+                        </div>
+                        <button onclick="loadVoiceProfiles()" class="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-300 rounded-lg text-xs font-medium border border-dark-700 flex items-center gap-1">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                            <span>Refresh Library</span>
+                        </button>
+                    </div>
+
+                    <div id="voices-list-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Rendered dynamically -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================== -->
+            <!-- TAB 3: COGNITIVE BRAIN & CUSTOMER LEARNING BANK                -->
+            <!-- ============================================================== -->
+            <section id="tab-brain" class="tab-pane hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                            <i data-lucide="sparkles" class="w-5 h-5 text-brand-400"></i>
+                            Cognitive Brain & Customer Learning Bank
+                        </h2>
+                        <p class="text-xs text-slate-400">The agent dynamically learns from caller questions during calls. Review learned questions, approve definitive answers, and manage Story Bank receipts.</p>
+                    </div>
+                    <button onclick="openAddReceiptModal()" class="px-3.5 py-2 bg-dark-800 hover:bg-dark-700 border border-dark-700 text-white rounded-xl text-xs font-medium transition flex items-center gap-1.5">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>Add Verified Receipt</span>
+                    </button>
+                </div>
+
+                <!-- Stats Overview Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-dark-900 border border-dark-800 rounded-2xl p-4">
+                        <div class="text-xs text-slate-400">Learned Questions</div>
+                        <div id="stat-total-q" class="text-2xl font-bold font-mono text-white mt-1">0</div>
+                    </div>
+                    <div class="bg-dark-900 border border-dark-800 rounded-2xl p-4">
+                        <div class="text-xs text-slate-400">Pending Review</div>
+                        <div id="stat-pending-q" class="text-2xl font-bold font-mono text-amber-400 mt-1">0</div>
+                    </div>
+                    <div class="bg-dark-900 border border-dark-800 rounded-2xl p-4">
+                        <div class="text-xs text-slate-400">Approved Knowledge</div>
+                        <div id="stat-approved-q" class="text-2xl font-bold font-mono text-emerald-400 mt-1">0</div>
+                    </div>
+                    <div class="bg-dark-900 border border-dark-800 rounded-2xl p-4">
+                        <div class="text-xs text-slate-400">Story Bank Receipts</div>
+                        <div id="stat-receipts" class="text-2xl font-bold font-mono text-brand-cyan mt-1">0</div>
+                    </div>
+                </div>
+
+                <!-- Card: Autonomous Brain Self-Evolution & Memory Growth -->
+                <div class="bg-dark-900 border border-dark-700/80 rounded-2xl p-5 space-y-4 shadow-xl">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                                <i data-lucide="cpu" class="w-4 h-4 text-emerald-400"></i>
+                                Autonomous Brain Self-Evolution & Dialogue Reflection
+                            </h3>
+                            <p class="text-xs text-slate-400">The agent autonomously reflects on completed calls, discovers unhandled customer objections, audits human cadence, and self-evolves knowledge.</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="triggerAutonomousEvolution()" id="btn-trigger-evolve" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-lg shadow-emerald-500/20">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                <span>Run Self-Evolution Now</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                        <div class="bg-dark-950 border border-dark-800 rounded-xl p-3">
+                            <div class="text-[11px] text-slate-400 uppercase font-semibold">Dialogue Naturalness Score</div>
+                            <div id="evolution-nat-score" class="text-xl font-bold font-mono text-emerald-400 mt-1 flex items-center gap-2">
+                                <span>98.0%</span>
+                                <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-sans">Human Standard</span>
+                            </div>
+                        </div>
+                        <div class="bg-dark-950 border border-dark-800 rounded-xl p-3">
+                            <div class="text-[11px] text-slate-400 uppercase font-semibold">Self-Evolution Status</div>
+                            <div id="evolution-status-label" class="text-sm font-bold text-brand-400 mt-1 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                Continuous Learning Active
+                            </div>
+                        </div>
+                        <div class="bg-dark-950 border border-dark-800 rounded-xl p-3">
+                            <div class="text-[11px] text-slate-400 uppercase font-semibold">Autonomous Reflection Logs</div>
+                            <div id="evolution-rounds-label" class="text-xl font-bold font-mono text-slate-200 mt-1">
+                                Ready
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Evolution Insights Feed -->
+                    <div id="evolution-insights-box" class="p-3 rounded-xl bg-dark-950 border border-dark-800 text-xs text-slate-300 space-y-1">
+                        <div class="font-semibold text-slate-400 uppercase text-[10px]">Latest Evolution Insights:</div>
+                        <div id="evolution-insights-text" class="text-slate-300">Continuous post-call reflection active. Calls automatically evaluated for objections and customer knowledge gaps.</div>
+                    </div>
+                </div>
+
+                <!-- Section: Customer Questions Learned Table -->
+                <div class="bg-dark-900 border border-dark-700/80 rounded-2xl p-5 space-y-4 shadow-xl">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                            <i data-lucide="help-circle" class="w-4 h-4 text-brand-400"></i>
+                            Customer Questions Learned During Calls
+                        </h3>
+                        <div class="flex items-center space-x-2">
+                            <select id="filter-q-status" onchange="loadCustomerQuestions()" class="bg-dark-950 border border-dark-700 rounded-lg px-2.5 py-1 text-xs text-slate-300">
+                                <option value="all">All Questions</option>
+                                <option value="pending_review" selected>Pending Review</option>
+                                <option value="approved">Approved & Active</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-300">
+                            <thead class="bg-dark-950 text-slate-400 font-medium border-b border-dark-800 uppercase tracking-wider">
+                                <tr>
+                                    <th class="py-2.5 px-3">Customer Question</th>
+                                    <th class="py-2.5 px-3">Frequency</th>
+                                    <th class="py-2.5 px-3">Category</th>
+                                    <th class="py-2.5 px-3">Proposed / Approved Answer</th>
+                                    <th class="py-2.5 px-3">Status</th>
+                                    <th class="py-2.5 px-3 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customer-questions-tbody" class="divide-y divide-dark-800">
+                                <tr><td colspan="6" class="py-4 text-center text-slate-500">Loading questions...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Section: Story Bank (Verified Receipts & Numbers) -->
+                <div class="bg-dark-900 border border-dark-700/80 rounded-2xl p-5 space-y-4 shadow-xl">
+                    <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                        <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+                        Story Bank — Verified Metrics & Case Receipts
+                    </h3>
+                    <div id="story-bank-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================== -->
+            <!-- TAB 4: DIALERS & CTI HUB                                       -->
+            <!-- ============================================================== -->
+            <section id="tab-dialers" class="tab-pane hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                            <i data-lucide="radio" class="w-5 h-5 text-brand-400"></i>
+                            Dialers & CTI Hub
+                        </h2>
+                        <p class="text-xs text-slate-400">Pluggable telephony integrations for VICIdial clusters, Asterisk AudioSocket, Cloud CPaaS, and browser Web Phone.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="simulateInboundDialerCall('vicidial')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-lg shadow-emerald-500/20">
+                            <i data-lucide="phone-incoming" class="w-4 h-4"></i>
+                            <span>Simulate Inbound VICIdial Call</span>
+                        </button>
+                        <button type="button" onclick="openDialerGuideModal('vicidial')" class="px-3.5 py-2 bg-dark-800 hover:bg-dark-700 text-slate-200 border border-dark-700 rounded-xl text-xs font-medium transition flex items-center gap-1.5">
+                            <i data-lucide="book-open" class="w-4 h-4 text-brand-cyan"></i>
+                            <span>Setup Guide & Dialplans</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Architecture & How It Works Banner -->
+                <div class="bg-dark-900 border border-dark-700/80 rounded-2xl p-5 shadow-xl space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                            <i data-lucide="git-merge" class="w-4 h-4 text-brand-cyan"></i>
+                            How Dialer Connection Works (End-to-End Architecture)
+                        </h3>
+                        <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">Bi-Directional AudioSocket (:9092)</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
+                        <div class="bg-dark-950 p-3 rounded-xl border border-dark-800 space-y-1">
+                            <div class="font-bold text-indigo-400">1. Predictive Dial</div>
+                            <p class="text-slate-400 text-[11px]">VICIdial dials list via SIP trunk. Prospect answers ("Hello?").</p>
+                        </div>
+                        <div class="bg-dark-950 p-3 rounded-xl border border-dark-800 space-y-1">
+                            <div class="font-bold text-emerald-400">2. AMD Classification</div>
+                            <p class="text-slate-400 text-[11px]">VICIdial/Asterisk confirms human greeting within 920ms (< 2s Safe Harbor).</p>
+                        </div>
+                        <div class="bg-dark-950 p-3 rounded-xl border border-dark-800 space-y-1">
+                            <div class="font-bold text-amber-400">3. AudioSocket Bridge</div>
+                            <p class="text-slate-400 text-[11px]">Asterisk routes call to ext 8388, connecting TCP to Shadow Voice on port 9092.</p>
+                        </div>
+                        <div class="bg-dark-950 p-3 rounded-xl border border-dark-800 space-y-1">
+                            <div class="font-bold text-brand-cyan">4. Live Voice Dialogue</div>
+                            <p class="text-slate-400 text-[11px]">Agent speaks natural greeting in cloned voice; handles objections with Cognitive Brain.</p>
+                        </div>
+                        <div class="bg-dark-950 p-3 rounded-xl border border-dark-800 space-y-1">
+                            <div class="font-bold text-rose-400">5. Closer Transfer & Dispo</div>
+                            <p class="text-slate-400 text-[11px]">On booking, calls /agc/api.php to transfer to closer queue and updates dispo SALE.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================== -->
+                <!-- BUILT-IN SOFTPHONES & AGENT WORKSTATIONS (EYEBEAM & X-LITE)    -->
+                <!-- ============================================================== -->
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                                <i data-lucide="headphones" class="w-5 h-5 text-indigo-400"></i>
+                                <span>Softphone Agent Workstations (Eyebeam & X-Lite)</span>
+                            </h3>
+                            <p class="text-xs text-slate-400">Directly launch Eyebeam.exe and X-Lite, auto-generate Windows Registry (.reg) configs with Auto-Answer, or connect the built-in Virtual SIP softphone to VICIdial.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="openSoftphoneGuideModal()" class="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-200 border border-dark-700 rounded-xl text-xs font-medium transition flex items-center gap-1.5">
+                                <i data-lucide="book-open" class="w-3.5 h-3.5 text-indigo-400"></i>
+                                <span>Softphone Setup Guide</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="softphones-container" class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <!-- Populated dynamically: Eyebeam, X-Lite, Virtual SIP Agent -->
+                    </div>
+                </div>
+
+                <!-- Dialer Cards Grid -->
+                <div class="pt-2">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2 mb-3">
+                        <i data-lucide="server" class="w-5 h-5 text-brand-400"></i>
+                        <span>Telephony Gateways & Trunks</span>
+                    </h3>
+                    <div id="dialer-cards-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Populated dynamically: VICIdial, Asterisk, CPaaS, Web Phone -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================== -->
+            <!-- TAB 5: AGENT REACH EYES                                        -->
+            <!-- ============================================================== -->
+            <section id="tab-reach" class="tab-pane hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                            <i data-lucide="eye" class="w-5 h-5 text-brand-400"></i>
+                            Agent Reach Eyes (Web & Competitor Learning)
+                        </h2>
+                        <p class="text-xs text-slate-400">Give your voice agent "eyes" to scan company websites, product pages, or competitor URLs and ingest facts directly into its Cognitive Brain.</p>
+                    </div>
+                </div>
+
+                <!-- URL Scanner Bar -->
+                <div class="bg-dark-900 border border-dark-700/80 rounded-2xl p-5 shadow-xl space-y-4">
+                    <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Target Website or Competitor URL to Inspect</label>
+                    <div class="flex items-center space-x-3">
+                        <div class="relative flex-1">
+                            <i data-lucide="globe" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+                            <input type="text" id="reach-url-input" placeholder="https://example.com/pricing or competitor website" class="w-full bg-dark-950 border border-dark-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500">
+                        </div>
+                        <button onclick="scanUrlWithReachEyes()" id="btn-scan-reach" class="px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-sm font-medium transition flex items-center gap-2 shadow-lg shadow-brand-500/20">
+                            <i data-lucide="search" class="w-4 h-4"></i>
+                            <span>Scan with Reach Eyes</span>
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs text-slate-500">
+                        <span>Quick Presets:</span>
+                        <button onclick="setReachUrl('https://vicidial.org')" class="px-2 py-0.5 rounded bg-dark-800 hover:bg-dark-700 border border-dark-700 text-slate-400">VICIdial.org</button>
+                        <button onclick="setReachUrl('https://www.asterisk.org')" class="px-2 py-0.5 rounded bg-dark-800 hover:bg-dark-700 border border-dark-700 text-slate-400">Asterisk.org</button>
+                        <button onclick="setReachUrl('https://telnyx.com')" class="px-2 py-0.5 rounded bg-dark-800 hover:bg-dark-700 border border-dark-700 text-slate-400">Telnyx</button>
+                    </div>
+                </div>
+
+                <!-- Analysis Results Panel -->
+                <div id="reach-results-panel" class="hidden space-y-6">
+                    <div class="bg-dark-900 border border-dark-700/80 rounded-2xl p-5 shadow-xl space-y-4">
+                        <div class="flex items-center justify-between pb-3 border-b border-dark-800">
+                            <div>
+                                <h3 id="reach-title" class="text-base font-bold text-white">Target Analysis</h3>
+                                <p id="reach-url-label" class="text-xs text-brand-400 font-mono"></p>
+                            </div>
+                            <button onclick="digestReachIntoBrain()" id="btn-digest" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-lg shadow-emerald-500/20">
+                                <i data-lucide="sparkles" class="w-4 h-4"></i>
+                                <span>Digest into Cognitive Brain</span>
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Value Props -->
+                            <div class="bg-dark-950 border border-dark-800 rounded-xl p-4 space-y-2">
+                                <div class="text-xs font-semibold text-slate-300 uppercase">Core Value Propositions</div>
+                                <ul id="reach-value-props" class="space-y-1.5 text-xs text-slate-300 list-disc list-inside"></ul>
+                            </div>
+                            <!-- Pricing & Plans -->
+                            <div class="bg-dark-950 border border-dark-800 rounded-xl p-4 space-y-2">
+                                <div class="text-xs font-semibold text-slate-300 uppercase">Pricing & Commercial Model</div>
+                                <div id="reach-pricing-tags" class="flex flex-wrap gap-2 mt-2"></div>
+                            </div>
+                        </div>
+
+                        <!-- Candidate Q&As -->
+                        <div class="bg-dark-950 border border-dark-800 rounded-xl p-4 space-y-2">
+                            <div class="text-xs font-semibold text-slate-300 uppercase">Extracted Candidate Q&As for Brain</div>
+                            <div id="reach-qas-list" class="space-y-2"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================== -->
+            <!-- TAB 6: CALL TRANSCRIPTS & HISTORY                              -->
+            <!-- ============================================================== -->
+            <section id="tab-history" class="tab-pane hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                            <i data-lucide="history" class="w-5 h-5 text-brand-400"></i>
+                            Call Transcripts & History
+                        </h2>
+                        <p class="text-xs text-slate-400">Review complete audio logs, conversational transcripts, and customer inquiries flagged across calls.</p>
+                    </div>
+                    <button onclick="loadCallHistory()" class="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-300 rounded-lg text-xs font-medium border border-dark-700 flex items-center gap-1">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+
+                <div class="bg-dark-900 border border-dark-700/80 rounded-2xl p-5 shadow-xl overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-dark-950 text-slate-400 font-medium border-b border-dark-800 uppercase tracking-wider">
+                            <tr>
+                                <th class="py-3 px-3">Session UUID</th>
+                                <th class="py-3 px-3">Phone</th>
+                                <th class="py-3 px-3">Duration</th>
+                                <th class="py-3 px-3">Disposition</th>
+                                <th class="py-3 px-3">P95 Latency</th>
+                                <th class="py-3 px-3">Questions Detected</th>
+                                <th class="py-3 px-3 text-right">Transcript</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody" class="divide-y divide-dark-800">
+                            <tr><td colspan="7" class="py-4 text-center text-slate-500">Loading call history...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============================================================== -->
+            <!-- TAB 7: COMPLIANCE & ANALYTICS                                  -->
+            <!-- ============================================================== -->
+            <section id="tab-analytics" class="tab-pane hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                            <i data-lucide="bar-chart-3" class="w-5 h-5 text-brand-400"></i>
+                            Analytics & Safe Harbor Compliance
+                        </h2>
+                        <p class="text-xs text-slate-400">FCC TCPA 8am-9pm calling window, National DNC registry scrubbing, and <3.0% Safe Harbor predictive drop limits.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Dispositions Chart -->
+                    <div class="bg-dark-900 border border-dark-700/80 rounded-2xl p-5 shadow-xl">
+                        <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-4">Call Dispositions Breakdown</h3>
+                        <div class="h-64">
+                            <canvas id="chart-dispositions"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Latency Distribution Chart -->
+                    <div class="bg-dark-900 border border-dark-700/80 rounded-2xl p-5 shadow-xl">
+                        <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-4">Turn-by-Turn Latency Percentiles (ms)</h3>
+                        <div class="h-64">
+                            <canvas id="chart-latency"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DNC Lookup & Calling Window Tester -->
+                <div class="bg-dark-900 border border-dark-700/80 rounded-2xl p-5 shadow-xl space-y-4">
+                    <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Live TCPA & DNC Pre-Dial Checker</h3>
+                    <div class="flex items-center space-x-3">
+                        <input type="text" id="dnc-test-phone" placeholder="Enter phone number (e.g., 3125550188)" class="flex-1 bg-dark-950 border border-dark-700 rounded-xl px-4 py-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-500">
+                        <button onclick="testDncScrub()" class="px-5 py-2.5 bg-dark-700 hover:bg-dark-600 text-white rounded-xl text-xs font-medium transition">
+                            Check Compliance
+                        </button>
+                    </div>
+                    <div id="dnc-test-result" class="hidden p-3 rounded-xl bg-dark-950 border border-dark-800 text-xs"></div>
+                </div>
+            </section>
+
+            <!-- ============================================================== -->
+            <!-- TAB 8: SYSTEM SETTINGS & MODELS                                -->
+            <!-- ============================================================== -->
+            <section id="tab-settings" class="tab-pane hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                            <i data-lucide="settings" class="w-5 h-5 text-brand-400"></i>
+                            System Settings & Universal Models
+                        </h2>
+                        <p class="text-xs text-slate-400">Configure LLM providers, local Ollama, STT/TTS streaming backends, and daily spend ceilings.</p>
+                    </div>
+                    <button onclick="saveSettings()" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-sm font-medium transition flex items-center gap-1.5 shadow-lg shadow-brand-500/20">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        <span>Save Settings</span>
+                    </button>
+                </div>
+
+                <div class="bg-dark-900 border border-dark-700/80 rounded-2xl p-5 shadow-xl space-y-5">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs font-semibold text-slate-300 uppercase">LLM Provider</label>
+                            <select id="setting-llm-provider" onchange="onProviderChanged()" class="mt-1.5 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-sm text-white">
+                                <option value="ollama">Local Ollama (100% Offline, Zero Key)</option>
+                                <option value="custom">Local AI / LM Studio / vLLM (localhost:1234)</option>
+                                <option value="groq">Groq Telephony (Sub-100ms Inference)</option>
+                                <option value="openrouter">OpenRouter (Multi-Model Cloud)</option>
+                                <option value="openai">OpenAI (GPT-4o / GPT-4o-mini)</option>
+                                <option value="gemini">Google Gemini (2.0 Flash)</option>
+                                <option value="anthropic">Anthropic Claude (3.5 Sonnet)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-slate-300 uppercase">Selected Model</label>
+                            <input type="text" id="setting-model-name" placeholder="e.g. llama3.2:latest or gpt-4o-mini" class="mt-1.5 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-sm font-mono text-white">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs font-semibold text-slate-300 uppercase flex items-center justify-between">
+                                <span>Local / Provider Base URL</span>
+                                <button type="button" onclick="testProviderConnection()" class="text-[11px] text-brand-400 hover:text-brand-300 font-normal">Test Connection</button>
+                            </label>
+                            <input type="text" id="setting-base-url" placeholder="http://localhost:11434 or http://localhost:1234/v1" class="mt-1.5 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-sm font-mono text-white">
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-slate-300 uppercase">Provider API Key (Optional for Local)</label>
+                            <input type="password" id="setting-api-key" placeholder="Enter API Key or leave blank for local" class="mt-1.5 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-sm font-mono text-white">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-dark-800 pt-4">
+                        <div>
+                            <label class="text-xs font-semibold text-slate-300 uppercase">STT Speech-to-Text Engine</label>
+                            <select id="setting-stt-engine" class="mt-1.5 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-sm text-white">
+                                <option value="deepgram_nova3">Deepgram Nova-3 (Sub-80ms Streaming)</option>
+                                <option value="flux_streaming">Flux Streaming STT</option>
+                                <option value="mock">Simulated High-Speed Engine</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-slate-300 uppercase">TTS Text-to-Speech Engine</label>
+                            <select id="setting-tts-engine" class="mt-1.5 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-sm text-white">
+                                <option value="cartesia_sonic">Cartesia Sonic (8kHz Continuation Streaming)</option>
+                                <option value="qwen3_tts">Qwen3-TTS Streaming Backend</option>
+                                <option value="mock">Paced 20ms Ring Buffer Simulator</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-dark-800 pt-4">
+                        <div>
+                            <label class="text-xs font-semibold text-slate-300 uppercase">Daily Spend Ceiling ($ USD)</label>
+                            <input type="text" id="setting-spend-ceiling" class="mt-1.5 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-sm font-mono text-white">
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-slate-300 uppercase">Safe Harbor Max Drop Rate (%)</label>
+                            <input type="text" id="setting-drop-limit" class="mt-1.5 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-sm font-mono text-white">
+                        </div>
+                    </div>
+
+                    <!-- Live Model Inference & TTFT Tester Card -->
+                    <div class="border-t border-dark-800 pt-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                                <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i>
+                                Live Model Inference & TTFT Tester
+                            </h4>
+                            <span id="model-connection-status" class="text-[11px] px-2 py-0.5 rounded-full bg-dark-800 text-slate-400 border border-dark-700">Checking...</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="test-prompt-input" value="Hi Jordan, do you support VICIdial integration and high-volume calling?" class="flex-1 bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white">
+                            <button onclick="runLiveModelTest()" id="btn-run-model-test" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-medium transition flex items-center gap-1 shadow-md shadow-brand-500/20">
+                                <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                                <span>Test Inference</span>
+                            </button>
+                        </div>
+                        <div id="model-test-result" class="hidden p-3 rounded-xl bg-dark-950 border border-dark-800 space-y-1 text-xs">
+                            <div class="flex items-center justify-between text-[11px] text-slate-400 pb-1 border-b border-dark-800">
+                                <div>Model: <span id="test-res-model" class="font-mono text-slate-200 font-semibold"></span></div>
+                                <div>Latency: <span id="test-res-latency" class="font-mono text-emerald-400 font-semibold"></span></div>
+                            </div>
+                            <div class="text-[11px] text-slate-400 pt-1">Response:</div>
+                            <div id="test-res-text" class="text-slate-200 text-xs italic"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal: Review / Approve Customer Question Answer -->
+    <div id="modal-approve-q" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-dark-900 border border-dark-700 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
+                Approve Customer Question Answer
+            </h3>
+            <div class="space-y-1">
+                <div class="text-xs text-slate-400">Customer Question:</div>
+                <div id="modal-q-text" class="text-sm font-medium text-slate-200 bg-dark-950 p-2.5 rounded-lg border border-dark-800"></div>
+            </div>
+            <div class="space-y-1">
+                <label class="text-xs font-semibold text-slate-300 uppercase">Definitive Agent Answer to Speak</label>
+                <textarea id="modal-q-answer" rows="4" class="w-full bg-dark-950 border border-dark-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-brand-500 custom-scrollbar"></textarea>
+            </div>
+            <div class="flex items-center justify-end space-x-2 pt-2">
+                <button onclick="closeApproveModal()" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white">Cancel</button>
+                <button onclick="submitApproveQuestion()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-emerald-500/20">Approve & Deploy to Brain</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add Story Bank Receipt -->
+    <div id="modal-add-receipt" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-dark-900 border border-dark-700 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i data-lucide="shield-check" class="w-5 h-5 text-brand-cyan"></i>
+                Add Story Bank Verified Receipt
+            </h3>
+            <div>
+                <label class="text-xs font-semibold text-slate-300 uppercase">Title</label>
+                <input type="text" id="receipt-title" class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-sm text-white">
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-slate-300 uppercase">Category</label>
+                <select id="receipt-category" class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-sm text-white">
+                    <option value="latency">Latency & Audio Pacing</option>
+                    <option value="cost_savings">Cost Savings & ROI</option>
+                    <option value="dialer_integration">Dialer & CTI Integration</option>
+                    <option value="reliability">Reliability & Compliance</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-slate-300 uppercase">Detail & Proof</label>
+                <textarea id="receipt-detail" rows="3" class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl p-3 text-sm text-white"></textarea>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-slate-300 uppercase">Verified Metrics</label>
+                <input type="text" id="receipt-metrics" placeholder="e.g., P95: 540ms | 0 drop rate" class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs font-mono text-white">
+            </div>
+            <div class="flex items-center justify-end space-x-2 pt-2">
+                <button onclick="closeAddReceiptModal()" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white">Cancel</button>
+                <button onclick="submitAddReceipt()" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold">Save Receipt</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Interactive Call Transcript & Turn Training Studio -->
+    <div id="modal-view-transcript" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-dark-900 border border-dark-700 rounded-2xl max-w-3xl w-full p-6 space-y-4 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex items-center justify-between pb-3 border-b border-dark-800">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 rounded-xl bg-brand-500/10 text-brand-cyan border border-brand-500/20">
+                        <i data-lucide="message-square-code" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center gap-2">
+                            Interactive Transcript & Turn Trainer Studio
+                        </h3>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span class="text-[11px] text-slate-400">Session:</span>
+                            <span id="transcript-session-pill" class="font-mono text-xs text-brand-cyan font-semibold"></span>
+                            <span id="transcript-dispo-pill" class="text-[10px] px-2 py-0.5 rounded-full bg-dark-800 text-slate-300 font-mono"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="exportCurrentTranscript('text')" class="px-2.5 py-1 bg-dark-800 hover:bg-dark-700 text-xs text-slate-300 rounded-lg border border-dark-700 transition flex items-center gap-1">
+                        <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                        <span>Script (.txt)</span>
+                    </button>
+                    <button onclick="exportCurrentTranscript('json')" class="px-2.5 py-1 bg-dark-800 hover:bg-dark-700 text-xs text-slate-300 rounded-lg border border-dark-700 transition flex items-center gap-1">
+                        <i data-lucide="code" class="w-3.5 h-3.5"></i>
+                        <span>JSON</span>
+                    </button>
+                    <button onclick="closeTranscriptModal()" class="text-slate-400 hover:text-white text-xl px-2">&times;</button>
+                </div>
+            </div>
+
+            <!-- Turn Feed Container -->
+            <div id="modal-transcript-content" class="flex-1 overflow-y-auto space-y-3 custom-scrollbar text-xs pr-2 min-h-[220px]"></div>
+
+            <!-- Inline Interactive Turn Training Drawer -->
+            <div id="drawer-train-turn" class="hidden p-4 rounded-xl bg-dark-950 border border-emerald-500/30 space-y-3 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div class="text-xs font-bold text-emerald-400 flex items-center gap-1.5 uppercase tracking-wide">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i>
+                        Train Cognitive Brain Memory with this Turn
+                    </div>
+                    <button onclick="closeTrainTurnDrawer()" class="text-slate-400 hover:text-white text-sm">&times;</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-slate-400">Customer Question / Utterance</label>
+                        <input type="text" id="train-turn-question" class="mt-1 w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs text-white">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-slate-400">Category</label>
+                            <select id="train-turn-category" class="mt-1 w-full bg-dark-900 border border-dark-700 rounded-lg px-2.5 py-2 text-xs text-white">
+                                <option value="general">General</option>
+                                <option value="pricing">Pricing</option>
+                                <option value="technical">Technical / Dialer</option>
+                                <option value="compliance">Compliance / TCPA</option>
+                                <option value="service">Service & SLA</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-slate-400">Sentiment</label>
+                            <select id="train-turn-sentiment" class="mt-1 w-full bg-dark-900 border border-dark-700 rounded-lg px-2.5 py-2 text-xs text-white">
+                                <option value="neutral">Neutral</option>
+                                <option value="positive">Positive</option>
+                                <option value="negative">Objection / Doubt</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[10px] uppercase font-bold text-slate-400">Definitive Golden Answer to Speak in Future Calls</label>
+                    <textarea id="train-turn-answer" rows="2" placeholder="Formulate the ideal, consultative human response..." class="mt-1 w-full bg-dark-900 border border-dark-700 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 custom-scrollbar"></textarea>
+                </div>
+
+                <div class="flex items-center justify-between pt-1">
+                    <span id="train-turn-feedback" class="text-xs text-emerald-400 font-medium"></span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="closeTrainTurnDrawer()" class="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white">Cancel</button>
+                        <button onclick="submitTrainTurn()" id="btn-submit-train-turn" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20">
+                            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                            <span>Commit to Brain Memory</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <!-- Modal: Edit Dialer Configuration -->
+    <div id="modal-edit-dialer" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-dark-900 border border-dark-700 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-dark-800">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i data-lucide="settings" class="w-5 h-5 text-brand-cyan"></i>
+                    <span>Configure Dialer: </span>
+                    <span id="edit-dialer-title-name" class="text-brand-400 font-mono text-sm"></span>
+                </h3>
+                <button onclick="closeEditDialerModal()" class="text-slate-400 hover:text-white text-xl">&times;</button>
+            </div>
+
+            <input type="hidden" id="edit-dialer-id">
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2">
+                    <label class="text-[11px] font-semibold text-slate-300 uppercase">Platform Display Name</label>
+                    <input type="text" id="edit-dialer-name" class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white">
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-slate-300 uppercase">Dialer Host / Server IP</label>
+                    <input type="text" id="edit-dialer-host" placeholder="e.g. 192.168.1.100" class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs font-mono text-white">
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-slate-300 uppercase">API Base URL</label>
+                    <input type="text" id="edit-dialer-api-url" placeholder="e.g. http://192.168.1.100/vicidial" class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs font-mono text-white">
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-slate-300 uppercase">API User</label>
+                    <input type="text" id="edit-dialer-api-user" placeholder="e.g. shadow_api or 6666" class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs font-mono text-white">
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-slate-300 uppercase">API Password</label>
+                    <input type="password" id="edit-dialer-api-pass" placeholder="Enter API secret / password" class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs font-mono text-white">
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-slate-300 uppercase">Campaign ID</label>
+                    <input type="text" id="edit-dialer-campaign" placeholder="e.g. SALES_OUT" class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs font-mono text-white">
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-slate-300 uppercase">Closer In-Group</label>
+                    <input type="text" id="edit-dialer-closer" placeholder="e.g. CLOSER_POOL" class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs font-mono text-white">
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-slate-300 uppercase">AudioSocket Port</label>
+                    <input type="number" id="edit-dialer-as-port" value="9092" class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs font-mono text-white">
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-slate-300 uppercase">SIP Port</label>
+                    <input type="number" id="edit-dialer-sip-port" value="5060" class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs font-mono text-white">
+                </div>
+                <div class="col-span-2">
+                    <label class="text-[11px] font-semibold text-slate-300 uppercase">Integration Notes</label>
+                    <input type="text" id="edit-dialer-notes" class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white">
+                </div>
+                <div class="col-span-2 flex items-center justify-between pt-1">
+                    <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
+                        <input type="checkbox" id="edit-dialer-simulated" class="w-4 h-4 rounded border-dark-700 bg-dark-950 text-brand-600 focus:ring-0">
+                        <span>Safe Simulation Mode (Mock responses without modifying real live PBX)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end space-x-2 pt-3 border-t border-dark-800">
+                <button type="button" onclick="closeEditDialerModal()" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white">Cancel</button>
+                <button type="button" onclick="submitEditDialer()" id="btn-save-dialer" class="px-5 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-brand-500/20">
+                    Save Dialer Configuration
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Dialer Setup Guide & Dialplan Generator -->
+    <div id="modal-dialer-guide" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-dark-900 border border-dark-700 rounded-2xl max-w-3xl w-full p-6 space-y-4 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex items-center justify-between pb-3 border-b border-dark-800">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 rounded-xl bg-brand-500/10 text-brand-cyan border border-brand-500/20">
+                        <i data-lucide="book-open" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center gap-2">
+                            <span>Dialer Integration Guide & Ready Dialplans</span>
+                        </h3>
+                        <div id="guide-dialer-subtitle" class="text-xs text-slate-400 font-mono mt-0.5"></div>
+                    </div>
+                </div>
+                <button onclick="closeDialerGuideModal()" class="text-slate-400 hover:text-white text-xl px-2">&times;</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto space-y-4 custom-scrollbar text-xs pr-2">
+                <!-- Architecture flow description -->
+                <div class="p-3 rounded-xl bg-dark-950 border border-dark-800 space-y-1">
+                    <div class="font-bold text-slate-300 uppercase text-[10px] tracking-wider">Telephony Signal & Audio Route</div>
+                    <div id="guide-architecture-text" class="text-brand-cyan font-mono text-xs"></div>
+                </div>
+
+                <!-- Asterisk extensions.conf block -->
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
+                            <i data-lucide="file-code" class="w-4 h-4 text-emerald-400"></i>
+                            Asterisk Dialplan: /etc/asterisk/extensions.conf
+                        </span>
+                        <button onclick="copyGuideDialplan()" id="btn-copy-dialplan" class="px-2.5 py-1 bg-dark-800 hover:bg-dark-700 text-slate-200 border border-dark-700 rounded-lg text-[11px] flex items-center gap-1 transition">
+                            <i data-lucide="copy" class="w-3 h-3"></i>
+                            <span>Copy Dialplan</span>
+                        </button>
+                    </div>
+                    <pre id="guide-dialplan-code" class="p-3.5 rounded-xl bg-dark-950 border border-dark-800 font-mono text-emerald-400 overflow-x-auto text-[11px] leading-relaxed"></pre>
+                </div>
+
+                <!-- Step-by-Step Checklist -->
+                <div class="space-y-2">
+                    <span class="font-bold text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
+                        <i data-lucide="check-square" class="w-4 h-4 text-brand-cyan"></i>
+                        Configuration Checklist
+                    </span>
+                    <div id="guide-steps-container" class="space-y-2.5">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Dispo Webhook URL -->
+                <div class="p-3.5 rounded-xl bg-dark-950 border border-dark-800 space-y-1.5">
+                    <div class="font-bold text-slate-300 uppercase text-[10px] tracking-wider">VICIdial Dispo Call URL / Webhook</div>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="guide-webhook-url" readonly class="flex-1 bg-dark-900 border border-dark-700 rounded-lg px-3 py-1.5 text-[11px] font-mono text-slate-300 focus:outline-none">
+                        <button onclick="copyGuideWebhook()" class="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-200 border border-dark-700 rounded-lg text-[11px] shrink-0">Copy URL</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-3 border-t border-dark-800 flex items-center justify-between">
+    <!-- Modal: Softphone Configuration -->
+    <div id="modal-softphone-config" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-dark-900 border border-dark-700 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-dark-800">
+                <div class="flex items-center space-x-2.5">
+                    <div class="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                        <i data-lucide="settings-2" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white">Configure Softphone</h3>
+                        <div id="sp-modal-subtitle" class="text-xs text-slate-400 font-mono"></div>
+                    </div>
+                </div>
+                <button onclick="closeSoftphoneConfigModal()" class="text-slate-400 hover:text-white text-xl">&times;</button>
+            </div>
+
+            <form onsubmit="saveSoftphoneConfig(event)" class="space-y-3.5 text-xs">
+                <input type="hidden" id="sp-modal-id">
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[11px] font-semibold text-slate-300 uppercase">SIP Extension / User</label>
+                        <input type="text" id="sp-modal-ext" required class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-semibold text-slate-300 uppercase">SIP Secret / Password</label>
+                        <input type="password" id="sp-modal-secret" placeholder="Leave unchanged or enter new" class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="col-span-2">
+                        <label class="text-[11px] font-semibold text-slate-300 uppercase">Dialer / Asterisk IP</label>
+                        <input type="text" id="sp-modal-server" required class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-semibold text-slate-300 uppercase">SIP Port</label>
+                        <input type="number" id="sp-modal-port" value="5060" class="mt-1 w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2 pt-1">
+                    <input type="checkbox" id="sp-modal-auto-answer" checked class="w-4 h-4 rounded border-dark-700 bg-dark-950 text-indigo-600 focus:ring-0">
+                    <label for="sp-modal-auto-answer" class="text-xs text-slate-300 select-none">Enable 0-Ring Auto-Answer (Required for VICIdial agent MeetMe)</label>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-[11px] font-semibold text-slate-300 uppercase">Notes / Workstation Identifier</label>
+                    <input type="text" id="sp-modal-notes" class="w-full bg-dark-950 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div class="pt-3 border-t border-dark-800 flex items-center justify-end space-x-2">
+                    <button type="button" onclick="closeSoftphoneConfigModal()" class="px-4 py-2 bg-dark-800 hover:bg-dark-700 text-slate-300 rounded-xl text-xs font-medium border border-dark-700">Cancel</button>
+                    <button type="submit" id="btn-save-softphone" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-indigo-600/20">Save Configuration</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Softphone Setup & VICIdial Connection Guide -->
+    <div id="modal-softphone-guide" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-dark-900 border border-dark-700 rounded-2xl max-w-3xl w-full p-6 space-y-4 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex items-center justify-between pb-3 border-b border-dark-800">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                        <i data-lucide="headphones" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white">Eyebeam & X-Lite VICIdial Connection Guide</h3>
+                        <div class="text-xs text-slate-400 font-mono mt-0.5">How softphones bridge calls between VICIdial agent screen and Shadow Voice</div>
+                    </div>
+                </div>
+                <button onclick="closeSoftphoneGuideModal()" class="text-slate-400 hover:text-white text-xl px-2">&times;</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto space-y-4 custom-scrollbar text-xs pr-2">
+                <!-- Overview card -->
+                <div class="p-3.5 rounded-xl bg-dark-950 border border-dark-800 space-y-1.5 leading-relaxed text-slate-300">
+                    <div class="font-bold text-indigo-400 uppercase text-[10px] tracking-wider">How VICIdial Agent Login Works With Softphones</div>
+                    <p>In VICIdial, every agent uses Eyebeam or X-Lite to log into the campaign. When you log into the web agent screen (<code>agc/vicidial.php</code>), VICIdial calls your softphone. The softphone auto-answers, placing you into the MeetMe conference room (e.g. <code>8600051</code>). When the predictive dialer connects with a customer, it dumps the customer into that conference!</p>
+                </div>
+
+                <!-- 5 Steps Container -->
+                <div class="space-y-3">
+                    <div class="p-3 rounded-xl bg-dark-950 border border-dark-800 space-y-1">
+                        <div class="font-bold text-emerald-400">Step 1: Check Extension in VICIdial Admin</div>
+                        <p class="text-slate-300">In <b>VICIdial Admin</b> &rarr; <b>Admin</b> &rarr; <b>Phones</b> &rarr; Add/Edit phone: Extension <code>1001</code>, Protocol <code>SIP</code>, Login <code>1001</code>, Password <code>test1001</code>, Status <code>ACTIVE</code>.</p>
+                    </div>
+
+                    <div class="p-3 rounded-xl bg-dark-950 border border-dark-800 space-y-1">
+                        <div class="font-bold text-brand-cyan">Step 2: 1-Click Auto-Provisioning for Eyebeam (.reg)</div>
+                        <p class="text-slate-300">Click <b>"Download .reg"</b> or <b>"Apply to Registry"</b> in Shadow Voice Studio. This automatically configures Eyebeam's SIP account with your extension, VICIdial IP, and turns on 0-ring Auto-Answer!</p>
+                    </div>
+
+                    <div class="p-3 rounded-xl bg-dark-950 border border-dark-800 space-y-1">
+                        <div class="font-bold text-amber-400">Step 3: Enable Auto-Answer in Eyebeam</div>
+                        <p class="text-slate-300">If configuring manually: In Eyebeam, right-click &rarr; <b>Options</b> &rarr; <b>Calls</b> &rarr; Check <b>"Auto Answer after 0 rings"</b>. This ensures calls from VICIdial are picked up instantaneously.</p>
+                    </div>
+
+                    <div class="p-3 rounded-xl bg-dark-950 border border-dark-800 space-y-1">
+                        <div class="font-bold text-indigo-400">Step 4: Log Into VICIdial Web Agent Screen</div>
+                        <p class="text-slate-300">Open <code>http://&lt;VICIDIAL_IP&gt;/agc/vicidial.php</code> &rarr; Phone Login: <code>1001</code>, Phone Pass: <code>test1001</code>, User: <code>6666</code>, Campaign: your campaign &rarr; Eyebeam will auto-answer and you'll hear <i>"You are the only person in this conference"</i>.</p>
+                    </div>
+
+                    <div class="p-3 rounded-xl bg-dark-950 border border-dark-800 space-y-1">
+                        <div class="font-bold text-rose-400">Step 5: Or Use Headless Virtual SIP Softphone</div>
+                        <p class="text-slate-300">Want zero desktop windows open? Use the built-in <b>Virtual SIP Agent</b>! Click <b>"Connect to VICIdial"</b> in the studio. Shadow Voice registers directly to Asterisk over SIP and auto-answers MeetMe calls straight into the AI voice engine.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-3 border-t border-dark-800 flex items-center justify-between">
+                <span class="text-[11px] text-slate-500">Need Eyebeam running? Click "Launch Eyebeam" on the workstation card.</span>
+                <button onclick="closeSoftphoneGuideModal()" class="px-4 py-2 bg-dark-800 hover:bg-dark-700 text-slate-200 rounded-xl text-xs font-medium border border-dark-700">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="/js/app.js"></script>
+</body>
+</html>

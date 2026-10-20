@@ -1,0 +1,30 @@
+{
+  "jurisdiction_scope": ["US"],
+  "calling_window": {
+    "start_hour": 8.0,
+    "end_hour": 21.0,
+    "enforce_local_timezone": true
+  },
+  "dnc_enforcement": {
+    "national_dnc_max_age_days": 31.0,
+    "block_dialing_when_stale": true,
+    "enable_state_dnc_registries": true,
+    "immediate_internal_propagation": true
+  },
+  "abandonment_rules": {
+    "fcc_max_rate": 0.03,
+    "warning_threshold": 0.025,
+    "safe_harbor_connect_window_ms": 2000.0,
+    "separate_technical_disconnects": true
+  },
+  "spend_ceiling": {
+    "global_daily_cap_usd": 500.0,
+    "per_campaign_default_cap_usd": 150.0,
+    "halt_on_breach": true
+  },
+  "retention_policy": {
+    "minimum_retention_years": 5,
+    "hash_chaining_enabled": true
+  }
+}
+

@@ -1,0 +1,23 @@
+{
+  "campaign_id": "DEFAULT_SALES_V1",
+  "version_id": "v2.1.0-pinned",
+  "agent_name": "Jordan",
+  "company_name": "Shadow Voice",
+  "target_market": "B2B_DIALER_TEAMS",
+  "opening_greeting": "Hi, this is Jordan calling from Shadow Voice - do you have a quick minute?",
+  "whitelisted_pricing_terms": [
+    "usage-based",
+    "custom quote",
+    "per-connected-minute"
+  ],
+  "transfer_destination_ext": "8300",
+  "disposition_mapping": {
+    "SALE": "Qualified Lead / Demo Accepted",
+    "CALLBK": "Call-Back Requested",
+    "XFER": "Transferred to Live Closer",
+    "DNC": "Do Not Call Request",
+    "NI": "Not Interested",
+    "AAM": "Answering Machine Detected"
+  },
+  "approved_by": "PM_Faisal & DialogueEng_Jordan"
+}
