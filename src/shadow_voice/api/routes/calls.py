@@ -113,6 +113,14 @@ async def process_turn(req: TurnRequest) -> Dict[str, Any]:
     return res
 
 
+@router.post("/{session_id}/turn")
+async def process_turn_by_path(session_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Convenience endpoint to process turn by path session_id."""
+    user_text = payload.get("text") or payload.get("user_text") or ""
+    req = TurnRequest(session_id=session_id, user_text=user_text)
+    return await process_turn(req)
+
+
 @router.post("/end")
 def end_call(req: EndCallRequest) -> Dict[str, Any]:
     """Ends an active call session and records disposition."""
@@ -123,6 +131,15 @@ def end_call(req: EndCallRequest) -> Dict[str, Any]:
     result = session.terminate_call(disposition=req.disposition)
     active_sessions.pop(req.session_id, None)
     return result
+
+
+@router.post("/{session_id}/end")
+def end_call_by_path(session_id: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Convenience endpoint to end call by path session_id."""
+    data = payload or {}
+    dispo = data.get("disposition") or "CALLBK"
+    req = EndCallRequest(session_id=session_id, disposition=dispo)
+    return end_call(req)
 
 
 @router.post("/transfer")

@@ -55,6 +55,7 @@ class EvolveRequest(BaseModel):
 
 
 @router.get("/stats")
+@router.get("/summary")
 def get_brain_stats() -> Dict[str, Any]:
     """Returns overview statistics of the Cognitive Brain."""
     all_q = brain_manager.get_customer_questions(limit=500)
@@ -68,9 +69,12 @@ def get_brain_stats() -> Dict[str, Any]:
 
     return {
         "total_learned_questions": len(all_q),
+        "total_questions": len(all_q),
         "pending_review_count": len(pending),
         "approved_count": len(approved),
+        "approved_questions": len(approved),
         "story_bank_receipts_count": len(stories),
+        "story_count": len(stories),
         "evolution_rounds_count": len(engine.get_evolution_history(limit=100)),
         "naturalness_score": latest_nat,
         "memory_status": "synced_and_evolving"

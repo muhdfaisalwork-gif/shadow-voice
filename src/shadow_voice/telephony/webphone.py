@@ -179,11 +179,13 @@ class WebPhoneSession:
         payload = {
             "type": "agent_speech",
             "text": agent_reply,
+            "agent_reply": agent_reply,
             "stage": turn_res.next_stage.value,
             "action": turn_res.action,
             "disposition": turn_res.disposition_code,
             "transfer_notes": turn_res.transfer_notes,
             "objection_handled": turn_res.objection_handled,
+            "questions_learned": self.customer_questions_detected[-1] if (is_q and recorded) else None,
             "audio_url": audio_url,
             "voice_name": self.active_voice.get("name", "Jordan"),
             "latency": {
