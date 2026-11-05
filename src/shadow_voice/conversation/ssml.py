@@ -9,7 +9,7 @@ Supported tags:
 - [slow]...[/slow]       -> Pacing speed multiplier ~0.85 (e.g. for pricing & compliance disclosures)
 - [fast]...[/fast]       -> Pacing speed multiplier ~1.15
 - [emphasis]...[/emphasis] -> Subtle slow-down ~0.92 with emphasis flag
-- [pause <ms>]           -> Synthetic silence insertion (e.g. [pause 250ms])
+- [pause <ms>]           -> Synthetic silence insertion (e.g. [pause 250ms], [pause 300 ms])
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ _TAGS: Dict[str, Dict[str, Any]] = {
 }
 
 _TAG_RE = re.compile(
-    r"\[(/?)((?:slow|fast|emphasis)|pause(?:\s*(\d+)(?:ms)?)?)\]",
+    r"\[(/?)((?:slow|fast|emphasis)|pause(?:\s*(\d+)(?:\s*ms)?)?)\]",
     re.IGNORECASE
 )
 
@@ -85,7 +85,9 @@ def parse_ssml_lite(text: Optional[str]) -> List[SSMLSegment]:
         tag_content = match.group(2).lower()
 
         if tag_content.startswith("pause"):
-            pause_val = int(match.group(3) or 200)
+            raw_ms = int(match.group(3) or 200)
+            # Bound pause duration between 10ms and 5000ms (prevent dead-air abandonment)
+            pause_val = max(10, min(5000, raw_ms))
             segments.append(SSMLSegment(text="", speed=None, emphasis=False, pause_ms=pause_val))
         elif is_close:
             clean_tag = tag_content.strip()
@@ -116,7 +118,7 @@ def strip_ssml_tags(text: Optional[str]) -> str:
     """Strips all inline SSML tags, returning clean plain text."""
     if not text:
         return ""
-    return re.sub(r"\[/?(?:slow|fast|emphasis|pause(?:\s*\d+(?:ms)?)?)\]", "", text, flags=re.IGNORECASE).strip()
+    return re.sub(r"\[/?(?:slow|fast|emphasis|pause(?:\s*\d+(?:\s*ms)?)?)\]", "", text, flags=re.IGNORECASE).strip()
 
 
 strip_ssml_lite = strip_ssml_tags

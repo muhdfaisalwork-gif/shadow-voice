@@ -21,6 +21,7 @@ import logging
 import time
 import uuid
 from typing import Dict, Any, Optional, List
+import numpy as np
 from fastapi import WebSocket
 
 from shadow_voice.core.audio import AudioFrame, resample_8k_to_16k, save_pcm_to_wav
@@ -100,6 +101,8 @@ class WebPhoneSession:
     def process_mic_audio(self, pcm_bytes: bytes) -> bytes:
         """Runs Acoustic Echo Cancellation on incoming mic PCM audio."""
         if not pcm_bytes:
+            return pcm_bytes
+        if not self.is_active:
             return pcm_bytes
         return self.aec.process_near_end(pcm_bytes)
 
@@ -258,7 +261,8 @@ class WebPhoneSession:
 
         if turn_res.action in ("TRANSFER_WARM", "TRANSFER_BLIND", "DNC", "HANGUP"):
             self.is_active = False
-            self.end_time = time.time()
+            if self.end_time is None:
+                self.end_time = time.time()
             self._save_call_log()
 
         return payload
@@ -266,7 +270,8 @@ class WebPhoneSession:
     def terminate_call(self, disposition: Optional[str] = None) -> Dict[str, Any]:
         """Ends the softphone call session and persists the call record."""
         self.is_active = False
-        self.end_time = time.time()
+        if self.end_time is None:
+            self.end_time = time.time()
         if disposition:
             self.last_disposition = disposition
         self._save_call_log()
@@ -295,8 +300,6 @@ class WebPhoneSession:
 
             dur_sec = max(2.0, min(60.0, duration))
             sample_count = int(dur_sec * 16000)
-            t = np.linspace(0, dur_sec, sample_count, endpoint=False) if 'np' in globals() else None
-            import numpy as np
             t = np.linspace(0, dur_sec, sample_count, endpoint=False)
             f0 = float(self.active_voice.get("estimated_pitch_hz") or 220.0)
             audio_wave = 0.25 * np.sin(2 * np.pi * f0 * t) * (0.6 + 0.4 * np.sin(2 * np.pi * 2.5 * t))

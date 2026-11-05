@@ -68,10 +68,10 @@ class AudioDSPMasterer:
 
     def apply_highpass(self, samples: np.ndarray, sample_rate: int, cutoff_hz: float = 80.0) -> np.ndarray:
         """Simple single-pole highpass filter to cut sub-audible low rumble."""
-        if cutoff_hz <= 0 or samples.size == 0:
+        if cutoff_hz <= 0 or samples.size <= 1:
             return samples
         rc = 1.0 / (2.0 * np.pi * cutoff_hz)
-        dt = 1.0 / sample_rate
+        dt = 1.0 / max(1, sample_rate)
         alpha = rc / (rc + dt)
         filtered = np.empty_like(samples)
         filtered[0] = samples[0]
@@ -132,13 +132,20 @@ class AudioDSPMasterer:
     ) -> bytes:
         """
         Runs full broadcast DSP mastering pipeline on int16 little-endian PCM bytes:
-        1. Float32 conversion [-1.0, 1.0]
-        2. Highpass filter
-        3. Sliding-window leveler (AGC)
-        4. Peak limiter
-        5. Clamped int16 output bytes
+        1. Byte alignment validation
+        2. Float32 conversion [-1.0, 1.0]
+        3. Highpass filter
+        4. Sliding-window leveler (AGC)
+        5. Peak limiter
+        6. Clamped int16 output bytes
         """
-        if not pcm_bytes:
+        if not pcm_bytes or len(pcm_bytes) < 2:
+            return pcm_bytes
+
+        # Align to 16-bit boundaries
+        if len(pcm_bytes) % 2 != 0:
+            pcm_bytes = pcm_bytes[:len(pcm_bytes) - 1]
+        if len(pcm_bytes) < 2:
             return pcm_bytes
 
         cfg = self.PRESETS.get(preset or self.default_preset, self.PRESETS["broadcast"])

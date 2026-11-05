@@ -4,11 +4,12 @@ Calls & Softphone API Router
 Handles:
 - Active call sessions
 - Built-in Web Phone WebSocket (/ws/webphone)
-- Call controls (start, hangup, transfer, disposition)
+- Call controls (start, hangup, transfer, disposition, live supervisor takeover)
 - Call history logs & transcripts
 """
 
 from __future__ import annotations
+import base64
 import json
 import time
 import logging
@@ -57,6 +58,10 @@ class TrainTurnRequest(BaseModel):
     sentiment: str = "neutral"
 
 
+class TakeoverRequest(BaseModel):
+    enabled: bool = True
+
+
 @router.get("/active")
 def get_active_calls() -> List[Dict[str, Any]]:
     """Lists currently active call sessions."""
@@ -74,7 +79,8 @@ def get_active_calls() -> List[Dict[str, Any]]:
             "start_time": s.start_time,
             "stage": s.fsm.current_stage.value,
             "turn_count": s.fsm.turn_count,
-            "is_active": s.is_active
+            "is_active": s.is_active,
+            "is_takeover": s.is_takeover
         }
         for s in active_sessions.values() if s.is_active
     ]
@@ -140,6 +146,21 @@ def end_call_by_path(session_id: str, payload: Optional[Dict[str, Any]] = None) 
     dispo = data.get("disposition") or "CALLBK"
     req = EndCallRequest(session_id=session_id, disposition=dispo)
     return end_call(req)
+
+
+@router.post("/{session_id}/takeover")
+def set_call_takeover(session_id: str, payload: Optional[TakeoverRequest] = None) -> Dict[str, Any]:
+    """Toggles supervisor live agent takeover for a call session."""
+    session = active_sessions.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Active call session not found")
+    enabled = payload.enabled if payload is not None else True
+    session.set_takeover(enabled)
+    return {
+        "status": "ok",
+        "session_id": session_id,
+        "is_takeover": session.is_takeover
+    }
 
 
 @router.post("/transfer")
@@ -283,7 +304,7 @@ def export_call_transcript(session_id: str, format: str = "text") -> Dict[str, A
 async def webphone_websocket(websocket: WebSocket):
     """
     WebSocket endpoint for real-time softphone interactions:
-    Supports live audio streaming, turn exchanges, barge-in signals, and telemetry.
+    Supports live audio streaming, turn exchanges, barge-in signals, supervisor takeover, and telemetry.
     """
     await websocket.accept()
     session = WebPhoneSession()
@@ -322,6 +343,29 @@ async def webphone_websocket(websocket: WebSocket):
                     "event": "barge_in_ack",
                     "status": "flushed",
                     "latency_ms": 4.2
+                })
+
+            elif event_type == "takeover":
+                enabled = bool(data.get("enabled", True))
+                session.set_takeover(enabled)
+                await websocket.send_json({
+                    "event": "takeover_ack",
+                    "is_takeover": session.is_takeover
+                })
+
+            elif event_type == "mic_audio":
+                raw_b64 = data.get("audio_b64") or ""
+                processed_bytes = 0
+                if raw_b64:
+                    try:
+                        pcm = base64.b64decode(raw_b64)
+                        cleaned = session.process_mic_audio(pcm)
+                        processed_bytes = len(cleaned)
+                    except Exception as e:
+                        logger.debug(f"Mic audio processing error: {e}")
+                await websocket.send_json({
+                    "event": "mic_audio_ack",
+                    "processed_bytes": processed_bytes
                 })
 
             elif event_type == "ping":

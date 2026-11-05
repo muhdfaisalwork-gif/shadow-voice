@@ -53,7 +53,7 @@ _ABBREVIATIONS = {
 
 
 def number_to_words(n: int) -> str:
-    """Converts an integer between 0 and 999,999 into spoken English words."""
+    """Converts an integer into spoken English words up to trillions."""
     if n < 0:
         return "negative " + number_to_words(-n)
     if n < 20:
@@ -67,6 +67,12 @@ def number_to_words(n: int) -> str:
     if n < 1_000_000:
         thousand, rem = divmod(n, 1000)
         return number_to_words(thousand) + " thousand" + ((" " + number_to_words(rem)) if rem else "")
+    if n < 1_000_000_000:
+        million, rem = divmod(n, 1_000_000)
+        return number_to_words(million) + " million" + ((" " + number_to_words(rem)) if rem else "")
+    if n < 1_000_000_000_000:
+        billion, rem = divmod(n, 1_000_000_000)
+        return number_to_words(billion) + " billion" + ((" " + number_to_words(rem)) if rem else "")
     return str(n)
 
 
@@ -91,7 +97,7 @@ class TelephonyTextNormalizer:
 
         masked = re.sub(r"\[[^\]]+\]", _mask_tag, cleaned)
 
-        # 2. Currency expansion (e.g. $499/mo, $25.50, $1,500)
+        # 2. Currency expansion (e.g. $499/mo, $25.50, $1,500, $1,000,000)
         def _replace_currency_with_cents(m):
             dollars = int(m.group(1).replace(",", ""))
             cents = int(m.group(2))
@@ -123,7 +129,8 @@ class TelephonyTextNormalizer:
         def _replace_time(m):
             hour = int(m.group(1))
             minute = int(m.group(2))
-            meridiem = (m.group(3) or "").strip().lower()
+            raw_meridiem = (m.group(3) or "").strip().lower()
+            meridiem = re.sub(r"\.", "", raw_meridiem)
 
             h_word = number_to_words(hour)
             if minute == 0:
@@ -134,9 +141,9 @@ class TelephonyTextNormalizer:
                 m_word = number_to_words(minute)
 
             time_str = f"{h_word} {m_word}".strip()
-            if meridiem in ("am", "a.m.", "a.m"):
+            if meridiem == "am":
                 time_str += " a.m."
-            elif meridiem in ("pm", "p.m.", "p.m"):
+            elif meridiem == "pm":
                 time_str += " p.m."
             return time_str
 

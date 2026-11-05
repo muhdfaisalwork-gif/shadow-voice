@@ -1,91 +1,85 @@
 """
-Audio Contract & Processing Module
-===================================
-Explicit internal contract:
-- PCM signed linear
-- 16-bit (little-endian, int16)
-- Mono (1 channel)
-- Canonical internal sample rate: 16 kHz
-- 20 ms processing/egress cadence (640 bytes per frame)
-- PSTN boundary: 8 kHz (320 bytes per frame)
-
-Includes bit-identical pure-NumPy vectorized Sun Microsystems g711.c port
-for G.711 μ-law / A-law codecs, providing complete Python 3.13+ compatibility.
+Audio Core Primitives & Ingress/Egress Processing
+=================================================
+Fulfills Principle 1 (Predictive Real-Time Latency Ceiling):
+- Strict 20ms frame slicing and validation
+- Clean-room 8kHz <-> 16kHz linear resamplers for carrier/transport boundaries
+- Jitter buffer with adaptive packet loss concealment (PLC)
+- Pure-NumPy vectorized G.711 μ-law / A-law codecs (Sun g711.c clean-room port)
 """
 
 from __future__ import annotations
 import math
-import struct
 from dataclasses import dataclass
-from typing import Optional, List, Tuple
+from typing import List, Optional, Generator
 import numpy as np
 
-# Canonical constants
+# Audio constants
 SAMPLE_RATE_16K: int = 16000
 SAMPLE_RATE_8K: int = 8000
-CHANNELS: int = 1
-BYTES_PER_SAMPLE: int = 2  # 16-bit signed integer
 FRAME_DURATION_MS: int = 20
+CHANNELS: int = 1
+BYTES_PER_SAMPLE: int = 2  # 16-bit linear PCM
 
-# Strict byte-count validations
-SAMPLES_PER_FRAME_16K: int = int(SAMPLE_RATE_16K * (FRAME_DURATION_MS / 1000.0))  # 320
-FRAME_BYTES_16K: int = SAMPLES_PER_FRAME_16K * BYTES_PER_SAMPLE                  # 640
+# 20ms @ 16kHz mono 16-bit = 320 samples = 640 bytes
+SAMPLES_PER_FRAME_16K: int = int(SAMPLE_RATE_16K * (FRAME_DURATION_MS / 1000))
+FRAME_BYTES_16K: int = SAMPLES_PER_FRAME_16K * BYTES_PER_SAMPLE
 
-SAMPLES_PER_FRAME_8K: int = int(SAMPLE_RATE_8K * (FRAME_DURATION_MS / 1000.0))    # 160
-FRAME_BYTES_8K: int = SAMPLES_PER_FRAME_8K * BYTES_PER_SAMPLE                    # 320
+# 20ms @ 8kHz mono 16-bit = 160 samples = 320 bytes
+SAMPLES_PER_FRAME_8K: int = int(SAMPLE_RATE_8K * (FRAME_DURATION_MS / 1000))
+FRAME_BYTES_8K: int = SAMPLES_PER_FRAME_8K * BYTES_PER_SAMPLE
 
+# Pre-computed silence frames
 SILENCE_FRAME_16K: bytes = b"\x00" * FRAME_BYTES_16K
 SILENCE_FRAME_8K: bytes = b"\x00" * FRAME_BYTES_8K
 
 
 class AudioFormatError(ValueError):
-    """Raised when an audio frame violates byte-count or sample-rate contracts."""
+    """Raised when an audio frame violates sample rate, alignment, or duration constraints."""
     pass
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True)
 class AudioFrame:
-    """Represents a discrete 20ms audio frame conforming to the Shadow Voice contract."""
+    """Immutable 20ms PCM audio frame passed across pipeline stages."""
     data: bytes
     sample_rate: int = SAMPLE_RATE_16K
     sequence_num: int = 0
     timestamp_ms: float = 0.0
 
     def __post_init__(self) -> None:
-        self.validate()
-
-    def validate(self) -> None:
         expected_bytes = FRAME_BYTES_16K if self.sample_rate == SAMPLE_RATE_16K else FRAME_BYTES_8K
         if len(self.data) != expected_bytes:
             raise AudioFormatError(
-                f"Invalid frame byte length {len(self.data)} for sample rate {self.sample_rate}Hz. "
-                f"Expected {expected_bytes} bytes for {FRAME_DURATION_MS}ms."
+                f"Invalid frame size: got {len(self.data)} bytes, expected exactly {expected_bytes} bytes "
+                f"for {self.sample_rate}Hz 20ms frame."
             )
+        if self.sample_rate not in (SAMPLE_RATE_16K, SAMPLE_RATE_8K):
+            raise AudioFormatError(f"Unsupported sample rate: {self.sample_rate}. Must be 8000 or 16000.")
 
     @property
     def duration_ms(self) -> float:
         return float(FRAME_DURATION_MS)
 
     @property
-    def samples_count(self) -> int:
+    def sample_count(self) -> int:
         return len(self.data) // BYTES_PER_SAMPLE
 
+    @property
+    def samples_count(self) -> int:
+        return self.sample_count
+
     def compute_rms_energy(self) -> float:
-        """Compute Root Mean Square (RMS) energy in dBFS."""
-        if not self.data:
-            return -96.0
+        """Computes Root-Mean-Square (RMS) dBFS energy of the frame."""
+        if len(self.data) == 0:
+            return -100.0
         samples = np.frombuffer(self.data, dtype=np.int16).astype(np.float32)
         rms = np.sqrt(np.mean(samples ** 2))
-        if rms <= 1e-6:
-            return -96.0
-        # Reference max amplitude for signed 16-bit is 32768
+        if rms <= 1e-5:
+            return -100.0
+        # Normalize to full scale (32768)
         dbfs = 20.0 * math.log10(rms / 32768.0)
-        return float(dbfs)
-
-    def is_clipping(self, threshold: int = 32760) -> bool:
-        """Check if any sample in the frame hits digital clipping ceiling."""
-        samples = np.frombuffer(self.data, dtype=np.int16)
-        return bool(np.any(np.abs(samples) >= threshold))
+        return max(-100.0, dbfs)
 
     def is_silence(self, threshold_dbfs: float = -50.0) -> bool:
         """Determines if the frame energy is below silence threshold."""
@@ -142,7 +136,8 @@ def resample_16k_to_8k(pcm_16k: Optional[bytes]) -> bytes:
 def chunk_pcm(pcm_bytes: bytes, frame_bytes: int = FRAME_BYTES_16K) -> List[bytes]:
     """Split a PCM byte buffer into strict frames of frame_bytes."""
     pcm = pcm_bytes or b""
-    return [pcm[i:i + frame_bytes] for i in range(0, len(pcm), frame_bytes) if len(pcm[i:i + frame_bytes]) == frame_bytes]
+    fb = max(2, frame_bytes)
+    return [pcm[i:i + fb] for i in range(0, len(pcm), fb) if len(pcm[i:i + fb]) == fb]
 
 
 def save_pcm_to_wav(pcm_bytes: bytes, filepath: str, sample_rate: int = SAMPLE_RATE_16K) -> str:
@@ -189,6 +184,10 @@ def lin2ulaw(pcm16) -> bytes:
     if isinstance(pcm16, (bytes, bytearray)):
         if len(pcm16) == 0:
             return b""
+        if len(pcm16) % 2 != 0:
+            pcm16 = pcm16[:len(pcm16) - 1]
+        if len(pcm16) == 0:
+            return b""
         pcm = np.frombuffer(pcm16, dtype=np.int16).astype(np.int32) >> 2  # 14-bit
     else:
         pcm = np.asarray(pcm16, dtype=np.int16).astype(np.int32) >> 2
@@ -217,10 +216,12 @@ def ulaw2lin(data: bytes) -> bytes:
     return pcm_arr.tobytes()
 
 
-def iter_frames(ulaw: bytes, frame_bytes: int = FRAME_BYTES_8K):
+def iter_frames(ulaw: bytes, frame_bytes: int = FRAME_BYTES_8K) -> Generator[bytes, None, None]:
     """Split μ-law audio into fixed frames; tail is silence-padded to exact frame_bytes."""
-    for start in range(0, len(ulaw), frame_bytes):
-        frame = ulaw[start:start + frame_bytes]
-        if len(frame) < frame_bytes:
-            frame = frame + bytes([ULAW_SILENCE]) * (frame_bytes - len(frame))
+    fb = max(1, int(frame_bytes))
+    u = ulaw or b""
+    for start in range(0, len(u), fb):
+        frame = u[start:start + fb]
+        if len(frame) < fb:
+            frame = frame + bytes([ULAW_SILENCE]) * (fb - len(frame))
         yield frame

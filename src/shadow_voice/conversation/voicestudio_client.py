@@ -29,8 +29,9 @@ class VoiceStudioClient:
     """REST client connecting Shadow Voice to local VoiceStudio instances."""
 
     def __init__(self, base_url: Optional[str] = None, timeout: float = 10.0) -> None:
-        self.base_url = (base_url or os.getenv("VOICESTUDIO_URL", DEFAULT_VOICESTUDIO_URL)).rstrip("/")
-        self.timeout = timeout
+        raw_url = (base_url or os.getenv("VOICESTUDIO_URL", DEFAULT_VOICESTUDIO_URL)).strip()
+        self.base_url = (raw_url or DEFAULT_VOICESTUDIO_URL).rstrip("/")
+        self.timeout = max(0.1, float(timeout or 10.0))
 
     def _request(self, endpoint: str, data: Optional[Dict[str, Any]] = None, method: str = "GET") -> Any:
         url = f"{self.base_url}{endpoint if endpoint.startswith('/') else '/' + endpoint}"
@@ -77,11 +78,15 @@ class VoiceStudioClient:
         response_format: str = "wav"
     ) -> Optional[bytes]:
         """Generates speech via VoiceStudio OpenAI-compatible endpoint."""
+        safe_text = (text or "").strip()
+        if not safe_text:
+            return None
+
         payload = {
-            "model": model,
-            "voice": voice_id,
-            "input": text,
-            "response_format": response_format
+            "model": model or "tts-1",
+            "voice": voice_id or "alloy",
+            "input": safe_text,
+            "response_format": response_format or "wav"
         }
         try:
             raw_audio = self._request("/v1/audio/speech", data=payload, method="POST")
@@ -95,20 +100,23 @@ class VoiceStudioClient:
         Voice Design: prompts VoiceStudio to synthesize a new voice profile
         matching a natural language persona description (e.g. '35-year-old female, warm, consultative midwest').
         """
+        safe_name = (name or "CustomVoice").strip() or "CustomVoice"
+        safe_desc = (description or "Natural sales professional").strip() or "Natural sales professional"
+
         payload = {
-            "name": name,
-            "description": description,
+            "name": safe_name,
+            "description": safe_desc,
             "gender": "neutral",
             "accent": "american",
             "personality": "professional"
         }
         try:
             res = self._request("/api/design", data=payload, method="POST")
-            return res if isinstance(res, dict) else {"success": True, "name": name, "voice_id": f"design_{name.lower().replace(' ', '_')}"}
+            return res if isinstance(res, dict) else {"success": True, "name": safe_name, "voice_id": f"design_{safe_name.lower().replace(' ', '_')}"}
         except Exception as e:
             logger.warning(f"VoiceStudio Voice Design failed: {e}")
             return {
                 "success": False,
                 "error": str(e),
-                "voice_id": f"fallback_{name.lower().replace(' ', '_')}"
+                "voice_id": f"fallback_{safe_name.lower().replace(' ', '_')}"
             }

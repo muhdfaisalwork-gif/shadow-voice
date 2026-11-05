@@ -92,8 +92,13 @@ class NlmsEchoCanceller:
 
     def push_far_end(self, pcm_bytes: bytes) -> None:
         """Append far-end (playback/egress) audio to the reference ring buffer."""
+        if not pcm_bytes or len(pcm_bytes) < 2:
+            return
+        if len(pcm_bytes) % 2 != 0:
+            pcm_bytes = pcm_bytes[:len(pcm_bytes) - 1]
         if not pcm_bytes:
             return
+
         self._last_far_push_monotonic = time.monotonic()
         samples = np.frombuffer(pcm_bytes, dtype=np.int16).astype(np.float32) / 32768.0
         n = samples.shape[0]
@@ -118,7 +123,13 @@ class NlmsEchoCanceller:
         Subtract the estimated echo from the near-end (microphone) signal.
         Returns int16 mono PCM with the estimated echo cancelled.
         """
-        if not pcm_bytes:
+        if not pcm_bytes or len(pcm_bytes) < 2:
+            return pcm_bytes
+
+        # Align byte buffer to 16-bit boundaries
+        if len(pcm_bytes) % 2 != 0:
+            pcm_bytes = pcm_bytes[:len(pcm_bytes) - 1]
+        if len(pcm_bytes) < 2:
             return pcm_bytes
 
         # If reference buffer isn't filled yet or far-end is stale, pass through safely
@@ -130,6 +141,9 @@ class NlmsEchoCanceller:
             return pcm_bytes
 
         near = np.frombuffer(pcm_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+        if near.size == 0:
+            return pcm_bytes
+
         cleaned = self._block_nlms(near)
         out = np.clip(cleaned * 32768.0, -32768.0, 32767.0).astype(np.int16)
         self.frames_processed += 1
@@ -160,6 +174,9 @@ class NlmsEchoCanceller:
 
     def _block_nlms(self, near: np.ndarray) -> np.ndarray:
         """Sample-by-sample NLMS adaptive filtering over one frame."""
+        if near.size == 0:
+            return near
+
         taps = self._taps
         far_window = self._far_window(taps + near.shape[0] - 1)
         if far_window.shape[0] < taps + near.shape[0] - 1:
@@ -170,7 +187,7 @@ class NlmsEchoCanceller:
 
         # Geigel double-talk detector
         far_max = float(np.max(np.abs(far_window))) if far_window.size else 0.0
-        near_max = float(np.max(np.abs(near)))
+        near_max = float(np.max(np.abs(near))) if near.size else 0.0
         if far_max <= 1e-3:
             return near
         double_talk = near_max > self._rho * far_max
@@ -191,5 +208,10 @@ class NlmsEchoCanceller:
                 norm = float(np.dot(x, x)) + 1e-6
                 w *= leakage
                 w += (step * e / norm) * x
+
+        # Coefficient divergence protection
+        if np.isnan(w).any() or np.isinf(w).any():
+            w.fill(0)
+
         self._processed_samples += near.shape[0]
         return out
