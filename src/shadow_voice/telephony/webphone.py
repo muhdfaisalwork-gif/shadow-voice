@@ -6,9 +6,15 @@ Provides browser-based softphone calling via WebSockets:
 - Symmetrical barge-in handling
 - Live turn-by-turn latency measurement (STT -> LLM TTFT -> TTS -> Total)
 - Integrated Sales Conversation FSM and Cognitive Brain
+- Server-side Pure-NumPy Acoustic Echo Cancellation (AEC)
+- Audio DSP mastering (highpass, leveler AGC, peak limiter)
+- Telephony text normalization pre-TTS
+- Supervisor live takeover control
 """
 
 from __future__ import annotations
+import os
+import wave
 import asyncio
 import json
 import logging
@@ -17,7 +23,10 @@ import uuid
 from typing import Dict, Any, Optional, List
 from fastapi import WebSocket
 
-from shadow_voice.core.audio import AudioFrame, resample_8k_to_16k
+from shadow_voice.core.audio import AudioFrame, resample_8k_to_16k, save_pcm_to_wav
+from shadow_voice.core.aec import NlmsEchoCanceller
+from shadow_voice.core.dsp import AudioDSPMasterer
+from shadow_voice.conversation.normalizer import TelephonyTextNormalizer
 from shadow_voice.core.playout_buffer import PacedPlayoutBuffer
 from shadow_voice.dialogue.fsm import SalesConversationFSM, Stage, FSMTurnResult
 from shadow_voice.brain.brain import BrainManager
@@ -48,10 +57,16 @@ class WebPhoneSession:
         self.end_time: Optional[float] = None
         self.is_active = True
         self.is_muted = False
+        self.is_takeover: bool = False
 
         self.brain = BrainManager()
         self.learner = CustomerQuestionLearner(self.brain)
         self.guardrail = RuntimeOutputGuardrail()
+
+        # Audio DSP and Echo Cancellation pipelines
+        self.aec = NlmsEchoCanceller(sample_rate=16000)
+        self.dsp = AudioDSPMasterer(default_preset="broadcast")
+        self.normalizer = TelephonyTextNormalizer()
 
         # Load persona and instructions from brain
         inst = self.brain.get_instructions(campaign_id)
@@ -77,13 +92,32 @@ class WebPhoneSession:
         self.last_disposition: str = "CALLBK"
         self.customer_questions_detected: List[str] = []
 
+    def set_takeover(self, enabled: bool) -> None:
+        """Enables or disables supervisor live agent takeover."""
+        self.is_takeover = bool(enabled)
+        logger.info(f"WebPhone session {self.session_id} takeover status set to {self.is_takeover}")
+
+    def process_mic_audio(self, pcm_bytes: bytes) -> bytes:
+        """Runs Acoustic Echo Cancellation on incoming mic PCM audio."""
+        if not pcm_bytes:
+            return pcm_bytes
+        return self.aec.process_near_end(pcm_bytes)
+
     def get_initial_greeting(self) -> Dict[str, Any]:
         """Delivers Section 7.1 Natural Human Opening greeting synthesized in active voice."""
         greeting_text = self.fsm.get_initial_greeting()
+        normalized_greeting = self.normalizer.normalize(greeting_text)
         audio_url = ""
         try:
-            synth = self.cloning_engine.synthesize_cloned_speech(greeting_text, self.active_voice)
+            synth = self.cloning_engine.synthesize_cloned_speech(normalized_greeting, self.active_voice)
             audio_url = synth.get("audio_url", "")
+            filepath = synth.get("filepath", "")
+            if filepath and os.path.exists(filepath):
+                with wave.open(filepath, "rb") as wf:
+                    pcm = wf.readframes(wf.getnframes())
+                mastered_pcm = self.dsp.process_pcm(pcm, sample_rate=16000)
+                save_pcm_to_wav(mastered_pcm, filepath, sample_rate=16000)
+                self.aec.push_far_end(mastered_pcm)
         except Exception as e:
             logger.debug(f"Audio synth skipped: {e}")
 
@@ -111,10 +145,12 @@ class WebPhoneSession:
     async def process_user_turn(self, user_text: str) -> Dict[str, Any]:
         """
         Processes caller speech turn:
-        1. Checks for customer questions to learn
-        2. Steps the guarded FSM
-        3. Validates against runtime output guardrails
-        4. Calculates turn-by-turn latency metrics
+        1. Checks for supervisor takeover
+        2. Checks for customer questions to learn
+        3. Steps the guarded FSM
+        4. Validates against runtime output guardrails
+        5. Normalizes text and masters synthesized speech
+        6. Calculates turn-by-turn latency metrics
         """
         if not self.is_active:
             return {
@@ -123,6 +159,22 @@ class WebPhoneSession:
                 "stage": "COMPLETED",
                 "action": "HANGUP",
                 "disposition": self.last_disposition,
+                "latency": {"stt_ms": 0.0, "llm_ttft_ms": 0.0, "tts_ms": 0.0, "total_ms": 0.0}
+            }
+
+        if self.is_takeover:
+            return {
+                "type": "agent_speech",
+                "text": "[Live Agent Speaking]",
+                "agent_reply": "[Live Agent Speaking]",
+                "stage": "AGENT_TAKEOVER",
+                "action": "TAKEOVER",
+                "disposition": "TAKEOVER",
+                "transfer_notes": "Supervisor has taken over the live session.",
+                "objection_handled": False,
+                "questions_learned": None,
+                "audio_url": "",
+                "voice_name": "Supervisor",
                 "latency": {"stt_ms": 0.0, "llm_ttft_ms": 0.0, "tts_ms": 0.0, "total_ms": 0.0}
             }
 
@@ -152,6 +204,7 @@ class WebPhoneSession:
         # Output guardrail audit
         guard_res = self.guardrail.inspect_text(turn_res.agent_text)
         agent_reply = guard_res.final_text
+        normalized_reply = self.normalizer.normalize(agent_reply)
 
         turn_end = time.time()
         measured_turn_ms = max(stt_latency + llm_ttft + tts_latency, (turn_end - turn_start) * 1000.0)
@@ -160,8 +213,15 @@ class WebPhoneSession:
         # Synthesize speech in active cloned voice
         audio_url = ""
         try:
-            synth = self.cloning_engine.synthesize_cloned_speech(agent_reply, self.active_voice)
+            synth = self.cloning_engine.synthesize_cloned_speech(normalized_reply, self.active_voice)
             audio_url = synth.get("audio_url", "")
+            filepath = synth.get("filepath", "")
+            if filepath and os.path.exists(filepath):
+                with wave.open(filepath, "rb") as wf:
+                    pcm = wf.readframes(wf.getnframes())
+                mastered_pcm = self.dsp.process_pcm(pcm, sample_rate=16000)
+                save_pcm_to_wav(mastered_pcm, filepath, sample_rate=16000)
+                self.aec.push_far_end(mastered_pcm)
         except Exception as e:
             logger.debug(f"Turn speech synthesis skipped: {e}")
 
@@ -227,10 +287,6 @@ class WebPhoneSession:
             p95 = max(self.latency_samples) if self.latency_samples else 540.0
 
             # Generate and save WAV recording
-            import os
-            import numpy as np
-            from shadow_voice.core.audio import save_pcm_to_wav
-
             base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
             rec_dir = os.path.join(base_dir, "storage", "recordings")
             os.makedirs(rec_dir, exist_ok=True)
@@ -239,6 +295,8 @@ class WebPhoneSession:
 
             dur_sec = max(2.0, min(60.0, duration))
             sample_count = int(dur_sec * 16000)
+            t = np.linspace(0, dur_sec, sample_count, endpoint=False) if 'np' in globals() else None
+            import numpy as np
             t = np.linspace(0, dur_sec, sample_count, endpoint=False)
             f0 = float(self.active_voice.get("estimated_pitch_hz") or 220.0)
             audio_wave = 0.25 * np.sin(2 * np.pi * f0 * t) * (0.6 + 0.4 * np.sin(2 * np.pi * 2.5 * t))

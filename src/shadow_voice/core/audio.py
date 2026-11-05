@@ -8,6 +8,9 @@ Explicit internal contract:
 - Canonical internal sample rate: 16 kHz
 - 20 ms processing/egress cadence (640 bytes per frame)
 - PSTN boundary: 8 kHz (320 bytes per frame)
+
+Includes bit-identical pure-NumPy vectorized Sun Microsystems g711.c port
+for G.711 μ-law / A-law codecs, providing complete Python 3.13+ compatibility.
 """
 
 from __future__ import annotations
@@ -155,4 +158,69 @@ def save_pcm_to_wav(pcm_bytes: bytes, filepath: str, sample_rate: int = SAMPLE_R
         wf.setframerate(sample_rate)
         wf.writeframes(pcm_bytes or b"")
     return filepath
-
+
+
+# ==============================================================================
+# PURE-NUMPY G.711 μ-LAW / A-LAW CODECS (PYTHON 3.13+ COMPATIBLE)
+# Vectorized clean-room port of Sun Microsystems g711.c reference implementation.
+# Replaces removed Python stdlib audioop module with 100% bit-identity.
+# ==============================================================================
+
+_BIAS = 0x21  # 33, applied to the 14-bit magnitude (Sun g711.c)
+_CLIP = 8159
+_SEG_END = np.array([0x3F, 0x7F, 0xFF, 0x1FF, 0x3FF, 0x7FF, 0xFFF, 0x1FFF], dtype=np.int32)
+ULAW_SILENCE: int = 0xFF
+
+
+def float_to_pcm16(samples) -> np.ndarray:
+    """Converts [-1.0, 1.0] float samples (any shape) into signed int16 mono PCM."""
+    arr = np.asarray(samples, dtype=np.float32)
+    if arr.ndim == 2:
+        arr = arr[0]
+    arr = np.nan_to_num(arr.reshape(-1), nan=0.0, posinf=1.0, neginf=-1.0)
+    return np.clip(np.round(arr * 32767.0), -32768, 32767).astype(np.int16)
+
+
+def lin2ulaw(pcm16) -> bytes:
+    """
+    16-bit linear PCM -> G.711 μ-law bytes.
+    Bit-identical to audioop.lin2ulaw(x, 2), operating vectorized in pure NumPy.
+    """
+    if isinstance(pcm16, (bytes, bytearray)):
+        if len(pcm16) == 0:
+            return b""
+        pcm = np.frombuffer(pcm16, dtype=np.int16).astype(np.int32) >> 2  # 14-bit
+    else:
+        pcm = np.asarray(pcm16, dtype=np.int16).astype(np.int32) >> 2
+
+    negative = pcm < 0
+    mag = np.where(negative, -pcm, pcm)
+    mag = np.minimum(mag, _CLIP) + _BIAS
+    mask = np.where(negative, 0x7F, 0xFF)
+    seg = np.searchsorted(_SEG_END, mag, side="left")
+    shifted = mag >> np.minimum(seg + 1, 31)
+    uval = np.where(seg >= 8, 0x7F, (seg << 4) | (shifted & 0xF))
+    return (uval ^ mask).astype(np.uint8).tobytes()
+
+
+def ulaw2lin(data: bytes) -> bytes:
+    """
+    G.711 μ-law bytes -> 16-bit linear PCM bytes.
+    Bit-identical to audioop.ulaw2lin(x, 2), operating vectorized in pure NumPy.
+    """
+    if not data:
+        return b""
+    u = (~np.frombuffer(data, dtype=np.uint8)).astype(np.int32) & 0xFF
+    t = ((u & 0x0F) << 3) + 0x84
+    t = t << ((u & 0x70) >> 4)
+    pcm_arr = np.where(u & 0x80, 0x84 - t, t - 0x84).astype(np.int16)
+    return pcm_arr.tobytes()
+
+
+def iter_frames(ulaw: bytes, frame_bytes: int = FRAME_BYTES_8K):
+    """Split μ-law audio into fixed frames; tail is silence-padded to exact frame_bytes."""
+    for start in range(0, len(ulaw), frame_bytes):
+        frame = ulaw[start:start + frame_bytes]
+        if len(frame) < frame_bytes:
+            frame = frame + bytes([ULAW_SILENCE]) * (frame_bytes - len(frame))
+        yield frame
